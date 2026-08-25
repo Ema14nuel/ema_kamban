@@ -1,0 +1,65 @@
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  transition: background 0.35s ease, color 0.35s ease;
+}
+
+input,
+textarea,
+button,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+input,
+textarea {
+  outline: none;
+}
+
+::placeholder {
+  opacity: 0.5;
+}
+
+::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(125, 135, 150, 0.4);
+  border-radius: 8px;
+}
+
+button {
+  cursor: pointer;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.card-fade {
+  animation: dcfade 0.3s ease both;
+}
+
+.pop-in {
+  animation: dcpop 0.16s ease both;
+}
+
+.slide-in {
+  animation: dcslide 0.22s ease both;
+}

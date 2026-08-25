@@ -1,0 +1,91 @@
+.calendar-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.calendar-nav button {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--input);
+}
+
+.calendar-month-label {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: capitalize;
+  min-width: 160px;
+  text-align: center;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 10.5px;
+  color: var(--dim);
+  text-transform: uppercase;
+  padding-bottom: 4px;
+}
+
+.calendar-cell {
+  min-height: 88px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calendar-cell.empty {
+  border: none;
+  background: transparent;
+}
+
+.calendar-cell.today {
+  border-color: var(--accent-solid);
+}
+
+.calendar-day-num {
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.calendar-day-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.calendar-entry {
+  font-size: 10px;
+  font-weight: 650;
+  padding: 2px 5px;
+  border-radius: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.calendar-entry-more {
+  font-size: 9.5px;
+  color: var(--dim);
+  padding-left: 5px;
+}

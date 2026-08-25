@@ -1,0 +1,78 @@
+.log-screen {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 34px 22px 90px;
+}
+
+.log-screen h1 {
+  margin: 0;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.log-screen > p.mono {
+  margin: 7px 0 22px;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.log-empty {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: 40px;
+  text-align: center;
+  color: var(--dim);
+  font-size: 13px;
+}
+
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.log-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 13px 16px;
+}
+
+.log-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 160px;
+}
+
+.log-row-title {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.log-row-meta {
+  font-size: 10.5px;
+}
+
+.log-row-dots {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.log-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.log-row-total {
+  font-size: 11px;
+  color: var(--dim);
+  white-space: nowrap;
+}

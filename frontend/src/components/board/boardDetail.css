@@ -1,0 +1,102 @@
+.board-detail {
+  min-height: calc(100vh - var(--nav-h));
+  background-size: cover;
+  background-position: center;
+}
+
+.board-detail-tint {
+  min-height: calc(100vh - var(--nav-h));
+  background: linear-gradient(var(--bg) 0%, var(--bg) 0%, color-mix(in srgb, var(--bg) 78%, transparent) 40%, var(--bg) 220px);
+}
+
+.board-detail-missing {
+  padding: 60px 22px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.board-subheader {
+  position: sticky;
+  top: var(--nav-h);
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 22px;
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+
+.board-back {
+  border: none;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--dim);
+  padding: 6px 4px;
+}
+
+.board-back:hover {
+  color: var(--text);
+}
+
+.board-subheader-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.board-subheader-name {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.board-subheader-count {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--input);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.board-subheader-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 11px;
+  background: var(--input);
+  border: 1px solid var(--border);
+  margin-left: auto;
+}
+
+.board-tab {
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--dim);
+}
+
+.board-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.board-config {
+  padding: 8px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--input);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.board-content {
+  padding: 22px 22px 90px;
+}

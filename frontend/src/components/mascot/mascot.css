@@ -1,0 +1,66 @@
+.mascot-strip {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  height: max(8vh, 56px);
+  pointer-events: none;
+  z-index: 30;
+}
+
+.mascot-sprite {
+  position: absolute;
+  bottom: 8px;
+  width: 46px;
+  height: 46px;
+}
+
+.mascot-anim {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(var(--flip, 1));
+}
+
+.mascot-anim.walk {
+  animation: mascot-walk 0.5s ease-in-out infinite;
+}
+
+.mascot-anim.cheer {
+  animation: mascot-cheer 0.45s ease-in-out infinite;
+}
+
+.mascot-anim img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.mascot-spark {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18px;
+  animation: dcspark 0.9s ease-out infinite;
+}
+
+@keyframes mascot-walk {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0);
+  }
+  50% {
+    transform: scaleX(var(--flip, 1)) translateY(-2px);
+  }
+}
+
+@keyframes mascot-cheer {
+  0%,
+  100% {
+    transform: scaleX(var(--flip, 1)) translateY(0);
+  }
+  40% {
+    transform: scaleX(var(--flip, 1)) translateY(-14px);
+  }
+}

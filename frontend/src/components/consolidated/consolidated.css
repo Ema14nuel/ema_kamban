@@ -1,0 +1,145 @@
+.consolidated-screen {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+  padding: 28px 22px 80px;
+}
+
+.consolidated-sidebar {
+  flex: 0 0 236px;
+  position: sticky;
+  top: calc(var(--nav-h) + 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.consolidated-sidebar-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim);
+  padding-left: 4px;
+}
+
+.consolidated-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.consolidated-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1.5px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.consolidated-check.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.consolidated-check-text {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.consolidated-check-count {
+  font-size: 10.5px;
+  color: var(--dim);
+}
+
+.consolidated-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.consolidated-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.consolidated-head h1 {
+  margin: 0;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.consolidated-head p {
+  margin: 7px 0 0;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.consolidated-view-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 11px;
+  background: var(--input);
+  border: 1px solid var(--border);
+}
+
+.consolidated-view-tab {
+  padding: 8px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--dim);
+}
+
+.consolidated-view-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.consolidated-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.consolidated-column {
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.consolidated-column-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 2px 3px 8px;
+  border-bottom: 2px solid transparent;
+}
+
+.consolidated-column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}

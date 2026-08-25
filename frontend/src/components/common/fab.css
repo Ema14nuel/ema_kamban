@@ -1,0 +1,30 @@
+.fab {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  border: none;
+  background: var(--accent);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+  z-index: 50;
+  display: grid;
+  place-items: center;
+}
+
+.fab-bar {
+  position: absolute;
+  background: #fff;
+  border-radius: 2px;
+}
+
+.fab-bar-h {
+  width: 20px;
+  height: 2.5px;
+}
+
+.fab-bar-v {
+  width: 2.5px;
+  height: 20px;
+}
