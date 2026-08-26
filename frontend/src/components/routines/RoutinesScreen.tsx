@@ -31,8 +31,8 @@ export default function RoutinesScreen() {
     setForm((f) => ({ ...f, days: { ...f.days, [key]: { ...f.days[key], ...p } } }));
   }
 
-  function onSubmit() {
-    const created = createRoutine(form);
+  async function onSubmit() {
+    const created = await createRoutine(form);
     if (created > 0) {
       setFeedback(`Se crearon ${created} actividades.`);
       setForm(emptyRoutineForm());

@@ -1,13 +1,13 @@
 import { useUiStore } from '../../store/uiStore';
-import { useAuthStore } from '../../store/authStore';
+import { displayName, useAuthStore } from '../../store/authStore';
 import Modal from '../common/Modal';
 
 export default function ProfileModal() {
   const closeModal = useUiStore((s) => s.closeModal);
-  const userName = useAuthStore((s) => s.userName);
-  const userEmail = useAuthStore((s) => s.userEmail);
+  const user = useAuthStore((s) => s.user);
+  const name = displayName(user);
 
-  const initials = userName
+  const initials = name
     .split(' ')
     .map((p) => p[0])
     .join('')
@@ -34,9 +34,9 @@ export default function ProfileModal() {
           {initials}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span style={{ fontSize: 15, fontWeight: 750 }}>{userName}</span>
+          <span style={{ fontSize: 15, fontWeight: 750 }}>{name}</span>
           <span className="mono" style={{ fontSize: 12, color: 'var(--dim)' }}>
-            {userEmail}
+            {user?.email}
           </span>
         </div>
       </div>

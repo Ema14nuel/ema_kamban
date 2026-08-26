@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ModalState, SpriteKey, Theme } from '../types';
+import type { ModalState, Theme } from '../types';
 
 export type PanelKind = 'focus' | 'pomodoro' | null;
 
@@ -41,21 +41,12 @@ interface UiState {
   mediaName: string;
   setMedia: (url: string, name: string) => void;
 
-  dragCardId: { boardId: string; cardId: string } | null;
-  setDragCard: (v: { boardId: string; cardId: string } | null) => void;
-
   filter: string[] | null;
   toggleBoardFilter: (boardId: string, allBoardIds: string[]) => void;
   toggleAllBoardsFilter: (allBoardIds: string[]) => void;
 
   month: number | null;
   shiftMonth: (delta: number) => void;
-
-  sprite: SpriteKey;
-  setSprite: (k: SpriteKey) => void;
-
-  notify: boolean;
-  toggleNotify: () => void;
 
   activeBoardId: string;
   setActiveBoardId: (id: string) => void;
@@ -101,9 +92,6 @@ export const useUiStore = create<UiState>()(
       mediaName: 'ninguno',
       setMedia: (mediaUrl, mediaName) => set({ mediaUrl, mediaName }),
 
-      dragCardId: null,
-      setDragCard: (dragCardId) => set({ dragCardId }),
-
       filter: null,
       toggleBoardFilter: (boardId, allBoardIds) => {
         const current = get().filter ?? allBoardIds;
@@ -123,13 +111,7 @@ export const useUiStore = create<UiState>()(
         set({ month: new Date(m.getFullYear(), m.getMonth() + delta, 1).getTime() });
       },
 
-      sprite: 'chico',
-      setSprite: (sprite) => set({ sprite }),
-
-      notify: true,
-      toggleNotify: () => set((s) => ({ notify: !s.notify })),
-
-      activeBoardId: 'b1',
+      activeBoardId: '',
       setActiveBoardId: (activeBoardId) => set({ activeBoardId }),
 
       consolidatedView: 'columns',
@@ -140,7 +122,7 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'kamban-ui',
-      partialize: (s) => ({ theme: s.theme, sprite: s.sprite, notify: s.notify }),
+      partialize: (s) => ({ theme: s.theme }),
     },
   ),
 );

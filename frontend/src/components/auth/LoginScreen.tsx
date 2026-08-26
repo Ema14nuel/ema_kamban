@@ -4,18 +4,22 @@ import './login.css';
 
 export default function LoginScreen() {
   const auth = useAuthStore((s) => s.auth);
-  const doLogin = useAuthStore((s) => s.doLogin);
+  const login = useAuthStore((s) => s.login);
   const goRecover = useAuthStore((s) => s.goRecover);
   const goLogin = useAuthStore((s) => s.goLogin);
   const sendRecover = useAuthStore((s) => s.sendRecover);
   const recoverSent = useAuthStore((s) => s.recoverSent);
+  const error = useAuthStore((s) => s.error);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  function onSubmitLogin(e: FormEvent) {
+  async function onSubmitLogin(e: FormEvent) {
     e.preventDefault();
-    doLogin(email);
+    setSubmitting(true);
+    await login(email, password);
+    setSubmitting(false);
   }
 
   function onSubmitRecover(e: FormEvent) {
@@ -48,8 +52,9 @@ export default function LoginScreen() {
               <label htmlFor="password">Contraseña</label>
               <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
             </div>
-            <button type="submit" className="btn btn-accent btn-block">
-              Entrar
+            {error && <p className="login-notice login-error">{error}</p>}
+            <button type="submit" className="btn btn-accent btn-block" disabled={submitting}>
+              {submitting ? 'Entrando…' : 'Entrar'}
             </button>
             <button type="button" className="login-link" onClick={goRecover}>
               ¿Olvidaste tu contraseña?

@@ -1,8 +1,7 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { ActivityCard, DayKey, DaySchedule, Routine } from '../types';
+import type { DayKey, DaySchedule, Routine } from '../types';
 import { DAY_KEYS, DAY_LABELS } from '../types';
-import { uid } from '../lib/id';
+import { api, ApiError } from '../lib/api';
 import { useBoardStore } from './boardStore';
 
 export interface RoutineForm {
@@ -44,45 +43,74 @@ export function routineSummary(r: Pick<Routine, 'days'>): string {
     .join(' · ');
 }
 
-interface RoutineState {
-  routines: Routine[];
-  createRoutine: (form: RoutineForm) => number;
-  removeRoutine: (id: string) => void;
+interface ApiRoutine {
+  id: number;
+  board: number;
+  title: string;
+  date_from: string;
+  date_to: string;
+  days: Record<DayKey, DaySchedule>;
+  count: number;
 }
 
-export const useRoutineStore = create<RoutineState>()(
-  persist(
-    (set) => ({
-      routines: [],
+function apiRoutineToRoutine(r: ApiRoutine): Routine {
+  return { id: String(r.id), boardId: String(r.board), title: r.title, from: r.date_from, to: r.date_to, days: r.days, count: r.count };
+}
 
-      createRoutine: (form) => {
-        const bid = form.boardId;
-        if (!form.title.trim() || !form.from || !form.to || !bid) return 0;
-        const start = new Date(`${form.from}T00:00:00`);
-        const end = new Date(`${form.to}T00:00:00`);
-        if (end < start) return 0;
+interface RoutineState {
+  routines: Routine[];
+  loaded: boolean;
+  error: string | null;
 
-        const cards: ActivityCard[] = [];
-        for (const d = new Date(start); d <= end && cards.length < 400; d.setDate(d.getDate() + 1)) {
-          const key = DAY_KEYS[(d.getDay() + 6) % 7];
-          const cfg = form.days[key];
-          if (!cfg || !cfg.on) continue;
-          const time = cfg.mode === 'range' ? cfg.start : cfg.time;
-          const desc = cfg.mode === 'range' ? `Entre ${cfg.start} y ${cfg.end}` : '';
-          const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          cards.push({ id: uid(), title: form.title.trim(), desc, date: iso, time });
-        }
-        if (!cards.length) return 0;
+  fetchRoutines: () => Promise<void>;
+  createRoutine: (form: RoutineForm) => Promise<number>;
+  removeRoutine: (id: string) => Promise<void>;
+}
 
-        useBoardStore.getState().addCardsToStatus(bid, 'pending', cards);
+export const useRoutineStore = create<RoutineState>()((set) => ({
+  routines: [],
+  loaded: false,
+  error: null,
 
-        const routine: Routine = { id: uid(), title: form.title.trim(), boardId: bid, from: form.from, to: form.to, days: form.days, count: cards.length };
-        set((s) => ({ routines: s.routines.concat(routine) }));
-        return cards.length;
-      },
+  fetchRoutines: async () => {
+    try {
+      const data = await api.get<ApiRoutine[]>('/routines/');
+      set({ routines: data.map(apiRoutineToRoutine), loaded: true });
+    } catch {
+      set({ error: 'No se pudieron cargar las programaciones.' });
+    }
+  },
 
-      removeRoutine: (id) => set((s) => ({ routines: s.routines.filter((r) => r.id !== id) })),
-    }),
-    { name: 'kamban-routines' },
-  ),
-);
+  createRoutine: async (form) => {
+    if (!form.title.trim() || !form.from || !form.to || !form.boardId) {
+      set({ error: 'Revisa el nombre, el tablero y el rango de fechas.' });
+      return 0;
+    }
+    try {
+      const data = await api.post<ApiRoutine>('/routines/', {
+        board: Number(form.boardId),
+        title: form.title.trim(),
+        date_from: form.from,
+        date_to: form.to,
+        days: form.days,
+      });
+      const routine = apiRoutineToRoutine(data);
+      set((s) => ({ routines: [routine, ...s.routines], error: null }));
+      await useBoardStore.getState().refreshBoard(form.boardId);
+      return routine.count;
+    } catch (err) {
+      const detail = err instanceof ApiError && err.body && typeof err.body === 'object' ? (err.body as { detail?: string }).detail : null;
+      set({ error: detail || 'No se pudo programar la actividad.' });
+      return 0;
+    }
+  },
+
+  removeRoutine: async (id) => {
+    try {
+      await api.del(`/routines/${id}/`);
+      set((s) => ({ routines: s.routines.filter((r) => r.id !== id) }));
+    } catch {
+      set({ error: 'No se pudo borrar la programación.' });
+    }
+  },
+}));

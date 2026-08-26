@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useMascotStore } from '../../store/mascotStore';
 import { useUiStore } from '../../store/uiStore';
+import { useAuthStore } from '../../store/authStore';
 import { SPRITES } from '../../types';
 import './mascot.css';
 
@@ -10,7 +11,7 @@ export default function Mascot() {
   const duration = useMascotStore((s) => s.duration);
   const cheering = useMascotStore((s) => s.cheering);
   const step = useMascotStore((s) => s.step);
-  const sprite = useUiStore((s) => s.sprite);
+  const sprite = useAuthStore((s) => s.user?.sprite) || 'chico';
   const panel = useUiStore((s) => s.panel);
 
   useEffect(() => {

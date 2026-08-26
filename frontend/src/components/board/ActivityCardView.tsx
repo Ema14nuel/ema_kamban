@@ -1,4 +1,4 @@
-import type { DragEvent } from 'react';
+import { useDraggable } from '@dnd-kit/core';
 import type { ActivityCard, StatusKey } from '../../types';
 import { medalOf } from '../../lib/medal';
 import { formatShortDate } from '../../lib/date';
@@ -16,21 +16,21 @@ interface ActivityCardViewProps {
 export default function ActivityCardView({ boardId, card, status, accentColor }: ActivityCardViewProps) {
   const removeCard = useBoardStore((s) => s.removeCard);
   const openFocus = useUiStore((s) => s.openFocus);
-  const setDragCard = useUiStore((s) => s.setDragCard);
   const medal = medalOf(card, status);
 
-  function onDragStart(e: DragEvent<HTMLDivElement>) {
-    setDragCard({ boardId, cardId: card.id });
-    e.dataTransfer.effectAllowed = 'move';
-  }
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: card.id,
+    data: { boardId, cardId: card.id, title: card.title, color: accentColor, medalColor: medal?.color },
+  });
 
   return (
     <div
-      className="activity-card card-fade"
+      ref={setNodeRef}
+      className={`activity-card card-fade ${isDragging ? 'is-dragging' : ''}`}
       style={{ borderLeftColor: accentColor }}
-      draggable
-      onDragStart={onDragStart}
-      onClick={() => openFocus(boardId, card.id)}
+      onClick={() => !isDragging && openFocus(boardId, card.id)}
+      {...listeners}
+      {...attributes}
     >
       <div className="activity-card-top">
         {medal && (

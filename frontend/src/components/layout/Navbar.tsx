@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUiStore } from '../../store/uiStore';
-import { useAuthStore } from '../../store/authStore';
+import { displayName, useAuthStore } from '../../store/authStore';
 import { useBoardStore } from '../../store/boardStore';
 import { usePomodoroStore } from '../../store/pomodoroStore';
 import { mmss } from '../../lib/date';
@@ -26,7 +26,7 @@ export default function Navbar() {
   const togglePomodoroPanel = useUiStore((s) => s.togglePomodoroPanel);
   const panel = useUiStore((s) => s.panel);
   const boards = useBoardStore((s) => s.boards);
-  const userName = useAuthStore((s) => s.userName);
+  const user = useAuthStore((s) => s.user);
   const pomo = usePomodoroStore();
   const navRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +40,7 @@ export default function Navbar() {
     return () => obs.disconnect();
   }, []);
 
-  const initials = userName
+  const initials = displayName(user)
     .split(' ')
     .map((p) => p[0])
     .join('')

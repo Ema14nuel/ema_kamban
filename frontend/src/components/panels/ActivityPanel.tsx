@@ -11,16 +11,18 @@ export default function ActivityPanel() {
   const focusTab = useUiStore((s) => s.focusTab);
   const setFocusTab = useUiStore((s) => s.setFocusTab);
   const closeFocus = useUiStore((s) => s.closeFocus);
-  const findCard = useBoardStore((s) => s.findCard);
+  const boards = useBoardStore((s) => s.boards);
   const patchCard = useBoardStore((s) => s.patchCard);
   const moveCard = useBoardStore((s) => s.moveCard);
   const removeCard = useBoardStore((s) => s.removeCard);
   const log = useLogStore((s) => s.log);
 
   if (!focus) return null;
-  const ref = findCard(focus.boardId, focus.cardId);
-  if (!ref) return null;
-  const { board, card, status } = ref;
+  const board = boards.find((b) => b.id === focus.boardId);
+  const column = board?.columns.find((c) => c.cards.some((k) => k.id === focus.cardId));
+  const card = column?.cards.find((k) => k.id === focus.cardId);
+  if (!board || !column || !card) return null;
+  const status = column.status;
   const sessions = log.filter((l) => l.cardId === card.id);
 
   return (

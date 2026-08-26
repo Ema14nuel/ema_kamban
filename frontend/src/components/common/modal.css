@@ -86,16 +86,20 @@
 .field input[type='url'],
 .field textarea,
 .field select {
+  width: 100%;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--input);
+  color: inherit;
   font-size: 13.5px;
+  caret-color: var(--accent-solid);
 }
 
 .field textarea {
   resize: vertical;
   min-height: 70px;
+  cursor: text;
 }
 
 .row-2 {
@@ -150,4 +154,69 @@
 
 .swatch.active {
   border-color: var(--text);
+}
+
+.swatch-picker {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px dashed var(--dim);
+  background: var(--input);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.swatch-picker.active {
+  border: 2px solid var(--text);
+}
+
+.swatch-picker-plus {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+
+.swatch-picker-plus span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background: #fff;
+  mix-blend-mode: difference;
+  border-radius: 1px;
+}
+
+.swatch-picker-plus span:first-child {
+  width: 12px;
+  height: 2.5px;
+  transform: translate(-50%, -50%);
+}
+
+.swatch-picker-plus span:last-child {
+  width: 2.5px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+}
+
+.swatch-picker input[type='color'] {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+.gradient-preview {
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  margin-top: 4px;
 }

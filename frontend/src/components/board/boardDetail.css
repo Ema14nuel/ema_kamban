@@ -2,11 +2,13 @@
   min-height: calc(100vh - var(--nav-h));
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .board-detail-tint {
   min-height: calc(100vh - var(--nav-h));
-  background: linear-gradient(var(--bg) 0%, var(--bg) 0%, color-mix(in srgb, var(--bg) 78%, transparent) 40%, var(--bg) 220px);
+  background: color-mix(in srgb, var(--bg) 22%, transparent);
 }
 
 .board-detail-missing {

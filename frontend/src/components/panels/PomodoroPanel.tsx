@@ -1,44 +1,50 @@
-import type { DragEvent } from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import { usePomodoroStore } from '../../store/pomodoroStore';
 import { useUiStore } from '../../store/uiStore';
 import { useBoardStore } from '../../store/boardStore';
 import { mmss } from '../../lib/date';
-import type { PomodoroMode } from '../../types';
+import type { Board, PomodoroMode } from '../../types';
 import './panels.css';
 
 const MODES: { key: PomodoroMode; label: string }[] = [
-  { key: 'focus', label: '25 min' },
-  { key: 'short', label: '5 min' },
-  { key: 'long', label: '15 min' },
+  { key: 'focus', label: 'Enfoque' },
+  { key: 'short', label: 'Corto' },
+  { key: 'long', label: 'Largo' },
 ];
+
+const DURATION_STEP = 5;
+
+function findCardIn(boards: Board[], boardId: string, cardId: string) {
+  const board = boards.find((b) => b.id === boardId);
+  if (!board) return null;
+  for (const col of board.columns) {
+    const card = col.cards.find((k) => k.id === cardId);
+    if (card) return { board, card };
+  }
+  return null;
+}
 
 export default function PomodoroPanel() {
   const pomo = usePomodoroStore();
   const setMode = usePomodoroStore((s) => s.setMode);
+  const setDuration = usePomodoroStore((s) => s.setDuration);
   const toggleRun = usePomodoroStore((s) => s.toggleRun);
   const reset = usePomodoroStore((s) => s.reset);
-  const addTask = usePomodoroStore((s) => s.addTask);
   const removeTask = usePomodoroStore((s) => s.removeTask);
   const setActive = usePomodoroStore((s) => s.setActive);
 
   const closePanel = useUiStore((s) => s.closePanel);
-  const dragCardId = useUiStore((s) => s.dragCardId);
-  const setDragCard = useUiStore((s) => s.setDragCard);
   const mediaUrl = useUiStore((s) => s.mediaUrl);
   const mediaName = useUiStore((s) => s.mediaName);
   const setMedia = useUiStore((s) => s.setMedia);
   const openImmersive = useUiStore((s) => s.openImmersive);
 
-  const findCard = useBoardStore((s) => s.findCard);
+  const boards = useBoardStore((s) => s.boards);
+  const { setNodeRef, isOver } = useDroppable({ id: 'pomodoro-dropzone' });
 
-  const activeRef = pomo.activeKey ? findCard(pomo.tasks.find((t) => t.cardId === pomo.activeKey)?.boardId || '', pomo.activeKey) : null;
+  const activeRef = pomo.activeKey ? findCardIn(boards, pomo.tasks.find((t) => t.cardId === pomo.activeKey)?.boardId || '', pomo.activeKey) : null;
   const activeBoard = activeRef?.board;
-
-  function onDropTask(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    if (dragCardId) addTask(dragCardId.boardId, dragCardId.cardId);
-    setDragCard(null);
-  }
+  const currentMinutes = Math.round(pomo.durations[pomo.mode] / 60);
 
   return (
     <aside className="pomodoro-panel slide-in">
@@ -55,6 +61,21 @@ export default function PomodoroPanel() {
             {m.label}
           </button>
         ))}
+      </div>
+
+      <div className="pomo-duration-adjust">
+        <button
+          type="button"
+          disabled={pomo.running || currentMinutes <= 1}
+          onClick={() => setDuration(pomo.mode, currentMinutes - DURATION_STEP)}
+          aria-label="Reducir duración"
+        >
+          −
+        </button>
+        <span className="mono">{currentMinutes} min</span>
+        <button type="button" disabled={pomo.running} onClick={() => setDuration(pomo.mode, currentMinutes + DURATION_STEP)} aria-label="Aumentar duración">
+          +
+        </button>
       </div>
 
       <div className="pomo-timer mono">{mmss(pomo.left)}</div>
@@ -74,11 +95,11 @@ export default function PomodoroPanel() {
         </button>
       </div>
 
-      <div className="pomo-tasks" onDragOver={(e) => e.preventDefault()} onDrop={onDropTask}>
+      <div ref={setNodeRef} className={`pomo-tasks ${isOver ? 'is-over' : ''}`}>
         <span className="panel-section-label">Tarea activa · arrastra una tarjeta aquí</span>
         {pomo.tasks.length === 0 && <div className="panel-empty">Sin tareas de enfoque.</div>}
         {pomo.tasks.map((t) => {
-          const ref = findCard(t.boardId, t.cardId);
+          const ref = findCardIn(boards, t.boardId, t.cardId);
           if (!ref) return null;
           return (
             <div key={t.cardId} className={`pomo-task ${pomo.activeKey === t.cardId ? 'active' : ''}`} onClick={() => setActive(t.cardId)}>

@@ -1,18 +1,19 @@
 import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useUiStore } from '../../store/uiStore';
-import { useAuthStore } from '../../store/authStore';
+import { displayName, useAuthStore } from '../../store/authStore';
 
 interface UserMenuProps {
   initials: string;
 }
 
 export default function UserMenu({ initials }: UserMenuProps) {
+  const navigate = useNavigate();
   const open = useUiStore((s) => s.userMenuOpen);
   const toggle = useUiStore((s) => s.toggleUserMenu);
   const close = useUiStore((s) => s.closeUserMenu);
   const openModal = useUiStore((s) => s.openModal);
-  const userName = useAuthStore((s) => s.userName);
-  const userEmail = useAuthStore((s) => s.userEmail);
+  const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -27,6 +28,7 @@ export default function UserMenu({ initials }: UserMenuProps) {
   const items = [
     { label: 'Perfil', icon: '◐', go: () => openModal({ kind: 'profile' }) },
     { label: 'Configuraciones', icon: '⚙', go: () => openModal({ kind: 'settings' }) },
+    ...(user?.is_staff ? [{ label: 'Usuarios', icon: '☺', go: () => navigate('/users') }] : []),
     { label: 'Cerrar sesión', icon: '⏻', go: () => logout() },
   ];
 
@@ -38,8 +40,8 @@ export default function UserMenu({ initials }: UserMenuProps) {
       {open && (
         <div className="navbar-user-menu pop-in">
           <div className="navbar-user-head">
-            <span className="navbar-user-name">{userName}</span>
-            <span className="navbar-user-email mono">{userEmail}</span>
+            <span className="navbar-user-name">{displayName(user)}</span>
+            <span className="navbar-user-email mono">{user?.email}</span>
           </div>
           <div className="navbar-user-items">
             {items.map((it) => (

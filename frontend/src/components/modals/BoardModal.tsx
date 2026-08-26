@@ -1,9 +1,40 @@
 import { useState } from 'react';
 import { useUiStore } from '../../store/uiStore';
 import { useBoardStore } from '../../store/boardStore';
-import { BOARD_COLORS, BOARD_GRADIENTS, BOARD_SOLIDS } from '../../types';
+import { BOARD_COLORS } from '../../types';
 import type { BoardBgType } from '../../types';
+import { autoGradient } from '../../lib/color';
 import Modal from '../common/Modal';
+
+function extractGradientBase(css: string, fallback: string): string {
+  const m = css.match(/,\s*(#[0-9a-fA-F]{6})\s+\d/);
+  return m ? m[1] : fallback;
+}
+
+interface ColorSwatchRowProps {
+  value: string;
+  onChange: (hex: string) => void;
+}
+
+function ColorSwatchRow({ value, onChange }: ColorSwatchRowProps) {
+  const isCustom = !BOARD_COLORS.includes(value);
+  return (
+    <div className="swatch-row">
+      {BOARD_COLORS.map((c) => (
+        <div key={c} className={`swatch ${!isCustom && value === c ? 'active' : ''}`} style={{ background: c }} onClick={() => onChange(c)} />
+      ))}
+      <label className={`swatch-picker ${isCustom ? 'active' : ''}`} style={{ background: isCustom ? value : undefined }} title="Elegir otro color">
+        {!isCustom && (
+          <span className="swatch-picker-plus">
+            <span />
+            <span />
+          </span>
+        )}
+        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} />
+      </label>
+    </div>
+  );
+}
 
 export default function BoardModal() {
   const modal = useUiStore((s) => s.modal);
@@ -18,21 +49,26 @@ export default function BoardModal() {
   const [name, setName] = useState(editing?.name || '');
   const [color, setColor] = useState(editing?.color || BOARD_COLORS[0]);
   const [bgType, setBgType] = useState<BoardBgType>(editing?.bgType || 'gradient');
-  const [bgValue, setBgValue] = useState(editing?.bgValue || BOARD_GRADIENTS[0]);
+  const [solidColor, setSolidColor] = useState(editing?.bgType === 'color' ? editing.bgValue : BOARD_COLORS[0]);
+  const [gradientColor, setGradientColor] = useState(
+    editing?.bgType === 'gradient' ? extractGradientBase(editing.bgValue, editing.color) : editing?.color || BOARD_COLORS[0],
+  );
+  const [imageUrl, setImageUrl] = useState(editing?.bgType === 'image' ? editing.bgValue : '');
   const [musicUrl, setMusicUrl] = useState(editing?.musicUrl || '');
 
-  function onSave() {
+  const bgValue = bgType === 'gradient' ? autoGradient(gradientColor) : bgType === 'color' ? solidColor : imageUrl;
+
+  async function onSave() {
     if (!name.trim()) return;
     const musicName = musicUrl ? 'enlace' : 'ninguna';
+    const input = { name: name.trim(), color, bgType, bgValue, musicUrl, musicName };
     if (editing) {
-      updateBoard(editing.id, { name: name.trim(), color, bgType, bgValue, musicUrl, musicName });
+      await updateBoard(editing.id, input);
     } else {
-      addBoard({ name: name.trim(), color, bgType, bgValue, musicUrl, musicName });
+      await addBoard(input);
     }
     closeModal();
   }
-
-  const bgOptions = bgType === 'gradient' ? BOARD_GRADIENTS : bgType === 'color' ? BOARD_SOLIDS : [];
 
   return (
     <Modal
@@ -68,50 +104,39 @@ export default function BoardModal() {
 
       <div className="field">
         <label>Color</label>
-        <div className="swatch-row">
-          {BOARD_COLORS.map((c) => (
-            <div key={c} className={`swatch ${color === c ? 'active' : ''}`} style={{ background: c }} onClick={() => setColor(c)} />
-          ))}
-        </div>
+        <ColorSwatchRow value={color} onChange={setColor} />
       </div>
 
       <div className="field">
         <label>Tipo de fondo</label>
         <div className="row-2" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
           {(['gradient', 'color', 'image'] as BoardBgType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={`btn ${bgType === t ? 'btn-accent' : ''}`}
-              onClick={() => {
-                setBgType(t);
-                setBgValue(t === 'gradient' ? BOARD_GRADIENTS[0] : t === 'color' ? BOARD_SOLIDS[0] : '');
-              }}
-            >
+            <button key={t} type="button" className={`btn ${bgType === t ? 'btn-accent' : ''}`} onClick={() => setBgType(t)}>
               {t === 'gradient' ? 'Degradado' : t === 'color' ? 'Color' : 'Imagen'}
             </button>
           ))}
         </div>
       </div>
 
-      {bgType === 'image' ? (
+      {bgType === 'image' && (
         <div className="field">
           <label>URL de la imagen</label>
-          <input type="url" value={bgValue} onChange={(e) => setBgValue(e.target.value)} placeholder="https://…" />
+          <input type="url" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://…" />
         </div>
-      ) : (
+      )}
+
+      {bgType === 'color' && (
         <div className="field">
-          <label>Fondo</label>
-          <div className="swatch-row">
-            {bgOptions.map((v) => (
-              <div
-                key={v}
-                className={`swatch ${bgValue === v ? 'active' : ''}`}
-                style={{ background: v, borderRadius: 8, width: 44, height: 30 }}
-                onClick={() => setBgValue(v)}
-              />
-            ))}
-          </div>
+          <label>Color de fondo</label>
+          <ColorSwatchRow value={solidColor} onChange={setSolidColor} />
+        </div>
+      )}
+
+      {bgType === 'gradient' && (
+        <div className="field">
+          <label>Color base del degradado</label>
+          <ColorSwatchRow value={gradientColor} onChange={setGradientColor} />
+          <div className="gradient-preview" style={{ background: bgValue }} />
         </div>
       )}
 

@@ -9,6 +9,8 @@ import BoardDetail from './components/board/BoardDetail';
 import ConsolidatedScreen from './components/consolidated/ConsolidatedScreen';
 import RoutinesScreen from './components/routines/RoutinesScreen';
 import LogScreen from './components/log/LogScreen';
+import UsersScreen from './components/admin/UsersScreen';
+import RequireStaff from './components/layout/RequireStaff';
 
 export default function App() {
   const auth = useAuthStore((s) => s.auth);
@@ -30,6 +32,14 @@ export default function App() {
           <Route path="/consolidated" element={<ConsolidatedScreen />} />
           <Route path="/routines" element={<RoutinesScreen />} />
           <Route path="/log" element={<LogScreen />} />
+          <Route
+            path="/users"
+            element={
+              <RequireStaff>
+                <UsersScreen />
+              </RequireStaff>
+            }
+          />
           <Route path="*" element={<Navigate to="/boards" replace />} />
         </Route>
       </Routes>

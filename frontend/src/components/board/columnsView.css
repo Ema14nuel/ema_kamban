@@ -7,13 +7,18 @@
 
 .column {
   border-radius: 14px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   background: var(--card);
   padding: 13px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   min-height: 120px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.column.is-over {
+  background: var(--input);
 }
 
 .column-head {

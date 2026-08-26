@@ -20,9 +20,9 @@ export default function NewActivityModal() {
 
   const boardOptions = boards.map((b) => ({ id: b.id, label: b.name, color: b.color }));
 
-  function onSave() {
+  async function onSave() {
     if (!boardId || !title.trim()) return;
-    addCard(boardId, { title: title.trim(), desc, date, time, status });
+    await addCard(boardId, { title: title.trim(), desc, date, time, status });
     closeModal();
   }
 

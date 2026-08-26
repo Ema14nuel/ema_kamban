@@ -28,6 +28,7 @@ export interface ActivityCard {
   time: string;
   pomos?: number;
   doneAt?: string;
+  createdAt?: string;
 }
 
 export interface Column {
@@ -49,18 +50,22 @@ export interface Board {
   columns: Column[];
 }
 
-export const BOARD_COLORS = ['#3b82f6', '#8b5cf6', '#14b8a6', '#f97316', '#ec4899', '#64748b'];
-
-export const BOARD_GRADIENTS = [
-  'linear-gradient(135deg,#0f2f7a,#2563eb 55%,#38bdf8)',
-  'linear-gradient(135deg,#5b21b6,#a855f7 55%,#f0abfc)',
-  'linear-gradient(135deg,#065f46,#10b981 60%,#5eead4)',
-  'linear-gradient(135deg,#9a3412,#f97316 60%,#fbbf24)',
-  'linear-gradient(135deg,#831843,#db2777 60%,#fb7185)',
-  'linear-gradient(135deg,#0f172a,#334155 60%,#64748b)',
+export const BOARD_COLORS = [
+  '#ef4444', // rojo
+  '#f97316', // naranja
+  '#f59e0b', // ámbar
+  '#eab308', // amarillo
+  '#84cc16', // lima
+  '#22c55e', // verde
+  '#10b981', // esmeralda
+  '#14b8a6', // teal
+  '#06b6d4', // cian
+  '#3b82f6', // azul
+  '#6366f1', // índigo
+  '#8b5cf6', // violeta
+  '#d946ef', // fucsia
+  '#ec4899', // rosa
 ];
-
-export const BOARD_SOLIDS = ['#1d4ed8', '#7c3aed', '#0f766e', '#b45309', '#be123c', '#3f4756'];
 
 export type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 
@@ -153,4 +158,13 @@ export interface ModalState {
   kind: ModalKind;
   boardId?: string | null;
   status?: StatusKey;
+}
+
+export type CardEventAction = 'created' | 'edited' | 'moved';
+
+export interface CardEvent {
+  id: string;
+  action: CardEventAction;
+  detail: string;
+  at: number;
 }

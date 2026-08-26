@@ -1,82 +1,119 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { ActivityCard, Board, StatusKey } from '../types';
+import type { ActivityCard, Board, CardEvent, LogEntry, StatusKey } from '../types';
 import { STATUSES } from '../types';
-import { uid } from '../lib/id';
-import { todayIso } from '../lib/date';
+import { api } from '../lib/api';
 import { useMascotStore } from './mascotStore';
 
-function seedColumns(cards: Record<StatusKey, ActivityCard[]>) {
-  return STATUSES.map((s) => ({ id: uid(), status: s.key, cards: cards[s.key] || [] }));
+interface ApiCard {
+  id: number;
+  board: number;
+  status: StatusKey;
+  title: string;
+  desc: string;
+  date: string;
+  time: string;
+  pomos: number;
+  done_at: string;
+  created_at: string;
 }
 
-const seedBoards: Board[] = [
-  {
-    id: 'b1',
-    name: 'Operación Atiempo',
-    color: '#3b82f6',
-    bgType: 'gradient',
-    bgValue: 'linear-gradient(135deg,#0f2f7a,#2563eb 55%,#38bdf8)',
-    musicUrl: '',
-    musicName: 'ninguna',
-    columns: seedColumns({
-      pending: [
-        { id: 'k1', title: 'Definir alcance del sprint', desc: 'Revisar backlog con el equipo de producto.', date: '2026-08-27', time: '09:30' },
-        { id: 'k2', title: 'Actualizar inventario', desc: '', date: '2026-08-31', time: '15:00' },
-      ],
-      progress: [
-        { id: 'k3', title: 'Integración de pagos', desc: 'Ambiente de pruebas listo, faltan webhooks.', date: '2026-08-26', time: '11:00' },
-      ],
-      waiting: [{ id: 'k4', title: 'Aprobación de contrato', desc: 'Depende de legal.', date: '2026-08-28', time: '' }],
-      done: [{ id: 'k5', title: 'Migración de base de datos', desc: '', date: '2026-08-20', time: '18:00' }],
-    }),
-  },
-  {
-    id: 'b2',
-    name: 'Clientes',
-    color: '#14b8a6',
-    bgType: 'gradient',
-    bgValue: 'linear-gradient(135deg,#065f46,#10b981 60%,#5eead4)',
-    musicUrl: '',
-    musicName: 'ninguna',
-    columns: seedColumns({
-      pending: [{ id: 'k6', title: 'Llamada con Coltec', desc: 'Renovación anual.', date: '2026-08-26', time: '16:00' }],
-      progress: [{ id: 'k7', title: 'Propuesta Andina S.A.', desc: '', date: '2026-08-27', time: '10:00' }],
-      waiting: [],
-      done: [{ id: 'k8', title: 'Cierre Nexa', desc: '', date: '2026-08-19', time: '12:00' }],
-    }),
-  },
-  {
-    id: 'b3',
-    name: 'Personal',
-    color: '#f97316',
-    bgType: 'gradient',
-    bgValue: 'linear-gradient(135deg,#9a3412,#f97316 60%,#fbbf24)',
-    musicUrl: '',
-    musicName: 'ninguna',
-    columns: seedColumns({
-      pending: [{ id: 'k9', title: 'Renovar licencia', desc: '', date: '2026-09-02', time: '08:00' }],
-      progress: [],
-      waiting: [],
-      done: [],
-    }),
-  },
-  {
-    id: 'b4',
-    name: 'Universidad',
-    color: '#8b5cf6',
-    bgType: 'gradient',
-    bgValue: 'linear-gradient(135deg,#5b21b6,#a855f7 55%,#f0abfc)',
-    musicUrl: '',
-    musicName: 'ninguna',
-    columns: seedColumns({
-      pending: [{ id: 'k10', title: 'Entrega proyecto final', desc: 'Informe + sustentación.', date: '2026-08-28', time: '18:30' }],
-      progress: [{ id: 'k11', title: 'Estudiar módulo 4', desc: '', date: '2026-08-25', time: '20:00' }],
-      waiting: [],
-      done: [],
-    }),
-  },
-];
+interface ApiCardEvent {
+  id: number;
+  card: number;
+  action: CardEvent['action'];
+  detail: string;
+  at: string;
+}
+
+interface ApiBoard {
+  id: number;
+  name: string;
+  color: string;
+  bg_type: Board['bgType'];
+  bg_value: string;
+  music_url: string;
+  music_name: string;
+  cards: ApiCard[];
+}
+
+function cardsToColumns(cards: ApiCard[]) {
+  return STATUSES.map((s) => ({
+    id: `col-${s.key}`,
+    status: s.key,
+    cards: cards
+      .filter((c) => c.status === s.key)
+      .map(
+        (c): ActivityCard => ({
+          id: String(c.id),
+          title: c.title,
+          desc: c.desc,
+          date: c.date,
+          time: c.time,
+          pomos: c.pomos,
+          doneAt: c.done_at || undefined,
+          createdAt: c.created_at,
+        }),
+      ),
+  }));
+}
+
+const PATCH_DEBOUNCE_MS = 600;
+
+interface CardWriteQueue {
+  timer: ReturnType<typeof setTimeout> | null;
+  pending: Record<string, unknown>;
+  inFlight: boolean;
+}
+const cardWriteQueues = new Map<string, CardWriteQueue>();
+
+/**
+ * Coalesces rapid edits (typing) into a single request with the latest
+ * value, and never lets two requests for the same card be in flight at
+ * once — otherwise an older request can resolve after a newer one and
+ * overwrite it with stale/partial data.
+ */
+function scheduleCardPatch(cardId: string, patch: Record<string, unknown>, onError: () => void) {
+  let queue = cardWriteQueues.get(cardId);
+  if (!queue) {
+    queue = { timer: null, pending: {}, inFlight: false };
+    cardWriteQueues.set(cardId, queue);
+  }
+  queue.pending = { ...queue.pending, ...patch };
+  if (queue.timer) clearTimeout(queue.timer);
+  queue.timer = setTimeout(() => flushCardPatch(cardId, onError), PATCH_DEBOUNCE_MS);
+}
+
+function flushCardPatch(cardId: string, onError: () => void) {
+  const queue = cardWriteQueues.get(cardId);
+  if (!queue || Object.keys(queue.pending).length === 0) return;
+  if (queue.inFlight) {
+    queue.timer = setTimeout(() => flushCardPatch(cardId, onError), PATCH_DEBOUNCE_MS);
+    return;
+  }
+  const body = queue.pending;
+  queue.pending = {};
+  queue.inFlight = true;
+  api
+    .patch(`/cards/${cardId}/`, body)
+    .catch(onError)
+    .finally(() => {
+      queue.inFlight = false;
+      if (Object.keys(queue.pending).length > 0) flushCardPatch(cardId, onError);
+    });
+}
+
+function apiBoardToBoard(b: ApiBoard): Board {
+  return {
+    id: String(b.id),
+    name: b.name,
+    color: b.color,
+    bgType: b.bg_type,
+    bgValue: b.bg_value,
+    musicUrl: b.music_url,
+    musicName: b.music_name,
+    columns: cardsToColumns(b.cards),
+  };
+}
 
 export interface NewBoardInput {
   name: string;
@@ -97,118 +134,221 @@ export interface NewCardInput {
 
 interface BoardStoreState {
   boards: Board[];
-  addBoard: (input: NewBoardInput) => string;
-  updateBoard: (id: string, patch: Partial<Board>) => void;
-  removeBoard: (id: string) => void;
-  addCard: (boardId: string, input: NewCardInput) => void;
-  addCardsToStatus: (boardId: string, status: StatusKey, cards: ActivityCard[]) => void;
-  patchCard: (boardId: string, cardId: string, patch: Partial<ActivityCard>) => void;
-  removeCard: (boardId: string, cardId: string) => void;
-  moveCard: (boardId: string, cardId: string, toStatus: StatusKey) => void;
+  loaded: boolean;
+  loading: boolean;
+  error: string | null;
+
+  fetchBoards: () => Promise<void>;
+  addBoard: (input: NewBoardInput) => Promise<string | null>;
+  updateBoard: (id: string, patch: Partial<NewBoardInput>) => Promise<void>;
+  removeBoard: (id: string) => Promise<void>;
+  refreshBoard: (boardId: string) => Promise<void>;
+
+  addCard: (boardId: string, input: NewCardInput) => Promise<void>;
+  patchCard: (boardId: string, cardId: string, patch: Partial<Pick<ActivityCard, 'title' | 'desc' | 'date' | 'time'>>) => Promise<void>;
+  removeCard: (boardId: string, cardId: string) => Promise<void>;
+  moveCard: (boardId: string, cardId: string, toStatus: StatusKey) => Promise<void>;
+  completePomodoro: (boardId: string, cardId: string, minutes: number) => Promise<LogEntry | null>;
+  fetchCardHistory: (cardId: string) => Promise<CardEvent[]>;
+
   findCard: (boardId: string, cardId: string) => { board: Board; card: ActivityCard; status: StatusKey } | null;
   countOf: (board: Board) => number;
   pendingCountOf: (board: Board) => number;
 }
 
-export const useBoardStore = create<BoardStoreState>()(
-  persist(
-    (set, get) => ({
-      boards: seedBoards,
+export const useBoardStore = create<BoardStoreState>()((set, get) => ({
+  boards: [],
+  loaded: false,
+  loading: false,
+  error: null,
 
-      addBoard: (input) => {
-        const id = uid();
-        const board: Board = {
-          id,
-          name: input.name,
-          color: input.color,
-          bgType: input.bgType,
-          bgValue: input.bgValue,
-          musicUrl: input.musicUrl,
-          musicName: input.musicName,
-          columns: STATUSES.map((s) => ({ id: uid(), status: s.key, cards: [] })),
-        };
-        set((s) => ({ boards: s.boards.concat(board) }));
-        return id;
-      },
+  fetchBoards: async () => {
+    set({ loading: true, error: null });
+    try {
+      const data = await api.get<ApiBoard[]>('/boards/');
+      set({ boards: data.map(apiBoardToBoard), loaded: true, loading: false });
+    } catch {
+      set({ error: 'No se pudieron cargar los tableros.', loading: false });
+    }
+  },
 
-      updateBoard: (id, patch) => {
-        set((s) => ({ boards: s.boards.map((b) => (b.id === id ? { ...b, ...patch } : b)) }));
-      },
+  refreshBoard: async (boardId) => {
+    try {
+      const data = await api.get<ApiBoard>(`/boards/${boardId}/`);
+      const board = apiBoardToBoard(data);
+      set((s) => ({ boards: s.boards.map((b) => (b.id === boardId ? board : b)) }));
+    } catch {
+      set({ error: 'No se pudo actualizar el tablero.' });
+    }
+  },
 
-      removeBoard: (id) => {
-        set((s) => ({ boards: s.boards.filter((b) => b.id !== id) }));
-      },
+  addBoard: async (input) => {
+    try {
+      const data = await api.post<ApiBoard>('/boards/', {
+        name: input.name,
+        color: input.color,
+        bg_type: input.bgType,
+        bg_value: input.bgValue,
+        music_url: input.musicUrl,
+        music_name: input.musicName,
+      });
+      const board = apiBoardToBoard(data);
+      set((s) => ({ boards: s.boards.concat(board) }));
+      return board.id;
+    } catch {
+      set({ error: 'No se pudo crear el tablero.' });
+      return null;
+    }
+  },
 
-      addCard: (boardId, input) => {
-        const card: ActivityCard = { id: uid(), title: input.title, desc: input.desc, date: input.date, time: input.time };
-        set((s) => ({
-          boards: s.boards.map((b) =>
-            b.id === boardId
-              ? { ...b, columns: b.columns.map((c) => (c.status === input.status ? { ...c, cards: c.cards.concat(card) } : c)) }
-              : b,
-          ),
-        }));
-      },
+  updateBoard: async (id, patch) => {
+    try {
+      const data = await api.patch<ApiBoard>(`/boards/${id}/`, {
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.color !== undefined ? { color: patch.color } : {}),
+        ...(patch.bgType !== undefined ? { bg_type: patch.bgType } : {}),
+        ...(patch.bgValue !== undefined ? { bg_value: patch.bgValue } : {}),
+        ...(patch.musicUrl !== undefined ? { music_url: patch.musicUrl } : {}),
+        ...(patch.musicName !== undefined ? { music_name: patch.musicName } : {}),
+      });
+      const board = apiBoardToBoard(data);
+      set((s) => ({ boards: s.boards.map((b) => (b.id === id ? board : b)) }));
+    } catch {
+      set({ error: 'No se pudo actualizar el tablero.' });
+    }
+  },
 
-      addCardsToStatus: (boardId, status, cards) => {
-        set((s) => ({
-          boards: s.boards.map((b) =>
-            b.id === boardId
-              ? { ...b, columns: b.columns.map((c) => (c.status === status ? { ...c, cards: c.cards.concat(cards) } : c)) }
-              : b,
-          ),
-        }));
-      },
+  removeBoard: async (id) => {
+    try {
+      await api.del(`/boards/${id}/`);
+      set((s) => ({ boards: s.boards.filter((b) => b.id !== id) }));
+    } catch {
+      set({ error: 'No se pudo borrar el tablero.' });
+    }
+  },
 
-      patchCard: (boardId, cardId, patch) => {
-        set((s) => ({
-          boards: s.boards.map((b) =>
-            b.id === boardId
-              ? { ...b, columns: b.columns.map((c) => ({ ...c, cards: c.cards.map((k) => (k.id === cardId ? { ...k, ...patch } : k)) })) }
-              : b,
-          ),
-        }));
-      },
+  addCard: async (boardId, input) => {
+    try {
+      const data = await api.post<ApiCard>('/cards/', {
+        board: Number(boardId),
+        status: input.status,
+        title: input.title,
+        desc: input.desc,
+        date: input.date,
+        time: input.time,
+      });
+      const card: ActivityCard = {
+        id: String(data.id),
+        title: data.title,
+        desc: data.desc,
+        date: data.date,
+        time: data.time,
+        pomos: data.pomos,
+        createdAt: data.created_at,
+      };
+      set((s) => ({
+        boards: s.boards.map((b) =>
+          b.id === boardId ? { ...b, columns: b.columns.map((c) => (c.status === input.status ? { ...c, cards: c.cards.concat(card) } : c)) } : b,
+        ),
+      }));
+    } catch {
+      set({ error: 'No se pudo crear la actividad.' });
+    }
+  },
 
-      removeCard: (boardId, cardId) => {
-        set((s) => ({
-          boards: s.boards.map((b) =>
-            b.id === boardId ? { ...b, columns: b.columns.map((c) => ({ ...c, cards: c.cards.filter((k) => k.id !== cardId) })) } : b,
-          ),
-        }));
-      },
+  patchCard: async (boardId, cardId, patch) => {
+    set((s) => ({
+      boards: s.boards.map((b) =>
+        b.id === boardId
+          ? { ...b, columns: b.columns.map((c) => ({ ...c, cards: c.cards.map((k) => (k.id === cardId ? { ...k, ...patch } : k)) })) }
+          : b,
+      ),
+    }));
+    scheduleCardPatch(cardId, patch, () => set({ error: 'No se pudo guardar el cambio.' }));
+  },
 
-      moveCard: (boardId, cardId, toStatus) => {
-        if (toStatus === 'done') useMascotStore.getState().celebrate();
-        set((s) => ({
-          boards: s.boards.map((b) => {
-            if (b.id !== boardId) return b;
-            let moved: ActivityCard | null = null;
-            const cols = b.columns.map((c) => {
-              const hit = c.cards.find((k) => k.id === cardId);
-              if (!hit) return c;
-              moved = toStatus === 'done' ? { ...hit, doneAt: todayIso() } : hit;
-              return { ...c, cards: c.cards.filter((k) => k.id !== cardId) };
-            });
-            if (!moved) return b;
-            return { ...b, columns: cols.map((c) => (c.status === toStatus ? { ...c, cards: c.cards.concat([moved as ActivityCard]) } : c)) };
-          }),
-        }));
-      },
+  removeCard: async (boardId, cardId) => {
+    try {
+      await api.del(`/cards/${cardId}/`);
+      set((s) => ({
+        boards: s.boards.map((b) => (b.id === boardId ? { ...b, columns: b.columns.map((c) => ({ ...c, cards: c.cards.filter((k) => k.id !== cardId) })) } : b)),
+      }));
+    } catch {
+      set({ error: 'No se pudo borrar la actividad.' });
+    }
+  },
 
-      findCard: (boardId, cardId) => {
-        const board = get().boards.find((b) => b.id === boardId);
-        if (!board) return null;
-        for (const col of board.columns) {
-          const card = col.cards.find((k) => k.id === cardId);
-          if (card) return { board, card, status: col.status };
-        }
-        return null;
-      },
+  moveCard: async (boardId, cardId, toStatus) => {
+    if (toStatus === 'done') useMascotStore.getState().celebrate();
+    try {
+      const data = await api.post<ApiCard>(`/cards/${cardId}/move/`, { status: toStatus });
+      set((s) => ({
+        boards: s.boards.map((b) => {
+          if (b.id !== boardId) return b;
+          let moved: ActivityCard | null = null;
+          const cols = b.columns.map((c) => {
+            const hit = c.cards.find((k) => k.id === cardId);
+            if (!hit) return c;
+            moved = { ...hit, doneAt: data.done_at || undefined };
+            return { ...c, cards: c.cards.filter((k) => k.id !== cardId) };
+          });
+          if (!moved) return b;
+          return { ...b, columns: cols.map((c) => (c.status === toStatus ? { ...c, cards: c.cards.concat([moved as ActivityCard]) } : c)) };
+        }),
+      }));
+    } catch {
+      set({ error: 'No se pudo mover la actividad.' });
+    }
+  },
 
-      countOf: (board) => board.columns.reduce((n, c) => n + c.cards.length, 0),
-      pendingCountOf: (board) => board.columns.find((c) => c.status === 'pending')?.cards.length || 0,
-    }),
-    { name: 'kamban-boards' },
-  ),
-);
+  completePomodoro: async (boardId, cardId, minutes) => {
+    try {
+      const data = await api.post<{
+        card: ApiCard;
+        entry: { id: number; title: string; board_name: string; color: string; minutes: number; at: string };
+      }>(`/cards/${cardId}/complete_pomodoro/`, { minutes });
+      set((s) => ({
+        boards: s.boards.map((b) =>
+          b.id === boardId
+            ? { ...b, columns: b.columns.map((c) => ({ ...c, cards: c.cards.map((k) => (k.id === cardId ? { ...k, pomos: data.card.pomos } : k)) })) }
+            : b,
+        ),
+      }));
+      return {
+        id: String(data.entry.id),
+        cardId,
+        boardId,
+        title: data.entry.title,
+        boardName: data.entry.board_name,
+        color: data.entry.color,
+        minutes: data.entry.minutes,
+        at: new Date(data.entry.at).getTime(),
+      };
+    } catch {
+      set({ error: 'No se pudo registrar el pomodoro.' });
+      return null;
+    }
+  },
+
+  fetchCardHistory: async (cardId) => {
+    try {
+      const data = await api.get<ApiCardEvent[]>(`/cards/${cardId}/history/`);
+      return data.map((e) => ({ id: String(e.id), action: e.action, detail: e.detail, at: new Date(e.at).getTime() }));
+    } catch {
+      return [];
+    }
+  },
+
+  findCard: (boardId, cardId) => {
+    const board = get().boards.find((b) => b.id === boardId);
+    if (!board) return null;
+    for (const col of board.columns) {
+      const card = col.cards.find((k) => k.id === cardId);
+      if (card) return { board, card, status: col.status };
+    }
+    return null;
+  },
+
+  countOf: (board) => board.columns.reduce((n, c) => n + c.cards.length, 0),
+  pendingCountOf: (board) => board.columns.find((c) => c.status === 'pending')?.cards.length || 0,
+}));

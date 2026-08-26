@@ -83,6 +83,11 @@
   padding: 10px 12px;
 }
 
+.login-error {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
 .login-link {
   align-self: center;
   background: none;
