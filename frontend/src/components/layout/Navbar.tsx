@@ -9,10 +9,12 @@ import UserMenu from './UserMenu';
 import './navbar.css';
 
 const NAV_TABS = [
+  { label: 'Inicio', path: '/' },
   { label: 'Tableros', path: '/boards' },
   { label: 'Consolidado', path: '/consolidated' },
   { label: 'Actividades', path: '/routines' },
   { label: 'Registro', path: '/log' },
+  { label: 'Histórico', path: '/history' },
 ];
 
 export default function Navbar() {
@@ -49,12 +51,13 @@ export default function Navbar() {
 
   function isTabActive(path: string) {
     if (path === '/boards') return location.pathname.startsWith('/boards');
+    if (path === '/') return location.pathname === '/';
     return location.pathname === path;
   }
 
   return (
     <div className="navbar" ref={navRef}>
-      <div className="navbar-brand" onClick={() => navigate('/boards')}>
+      <div className="navbar-brand" onClick={() => navigate('/')}>
         <div className="navbar-logo">
           <span />
           <span className="dim" />

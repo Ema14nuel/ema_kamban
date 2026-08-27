@@ -11,6 +11,8 @@ import RoutinesScreen from './components/routines/RoutinesScreen';
 import LogScreen from './components/log/LogScreen';
 import UsersScreen from './components/admin/UsersScreen';
 import RequireStaff from './components/layout/RequireStaff';
+import DashboardScreen from './components/dashboard/DashboardScreen';
+import ActivitiesHistoryScreen from './components/history/ActivitiesHistoryScreen';
 
 export default function App() {
   const auth = useAuthStore((s) => s.auth);
@@ -26,12 +28,13 @@ export default function App() {
     <HashRouter>
       <Routes>
         <Route element={<Shell />}>
-          <Route path="/" element={<Navigate to="/boards" replace />} />
+          <Route path="/" element={<DashboardScreen />} />
           <Route path="/boards" element={<BoardsHome />} />
           <Route path="/boards/:boardId" element={<BoardDetail />} />
           <Route path="/consolidated" element={<ConsolidatedScreen />} />
           <Route path="/routines" element={<RoutinesScreen />} />
           <Route path="/log" element={<LogScreen />} />
+          <Route path="/history" element={<ActivitiesHistoryScreen />} />
           <Route
             path="/users"
             element={
@@ -40,7 +43,7 @@ export default function App() {
               </RequireStaff>
             }
           />
-          <Route path="*" element={<Navigate to="/boards" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </HashRouter>

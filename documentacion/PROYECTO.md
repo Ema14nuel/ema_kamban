@@ -4,29 +4,31 @@
 > retomar el trabajo sin releer todo el historial de chat. Resume qué se
 > construyó, por qué, qué decisiones se tomaron y qué falta.
 
-## 0. EN CURSO — retomar aquí
+## 0. Feature "Inicio" + "Histórico" — completada
 
-Sesión interrumpida a mitad de una feature. **El backend de esta feature ya
-está terminado y commiteado**; falta todo el frontend. Esto es exactamente lo
-que pidió el usuario, en sus palabras — no reinterpretar:
+Pantalla "Inicio" (dashboard) y pantalla "Histórico" (listado + traza de
+actividad) ya están implementadas end-to-end (backend + frontend) y
+verificadas con Playwright contra el backend real: login, navbar en el orden
+Inicio/Tableros/Consolidado/Actividades/Registro/Histórico, crear tablero +
+tarjeta de prueba, editar título, mover de columna, abrir "Histórico", abrir
+el modal de detalle y confirmar que la traza muestra created/edited/moved
+ordenados del más reciente al más antiguo con su detalle en texto, cierre del
+modal al hacer click en el overlay, y limpieza del tablero de prueba al
+terminar. Sin errores de consola ni de red durante la prueba.
 
-> Ahora has una pantalla que diga actividades, y desde ahí se muestren todas
-> las actividades con: ID, tablero, nombre actividad, fecha de inicio, fecha
-> finalización, campo de ver que muestre un modal grande con los detalles de
-> la actividad como una traza de lo que se hace como registro (si se editó,
-> si se pasó de una columna a otra — registrar ese ajuste), y cantidad de
-> pomodoros, detalle total de la actividad. Y otra pantalla con un dashboard
-> de actividades completadas a tiempo, fuera de la fecha, sin resolver, en
-> una opción "Inicio" al lado de Tableros. Y cuando se vea el detalle de las
-> actividades, si se hace clic afuera del panel lateral se debe cerrar (ya
-> cumplido: el `Modal` común ya cierra al clickear el overlay).
+La pestaña "Actividades" (programación recurrente) se dejó como estaba, sin
+tocar. El dashboard "Inicio" quedó como primera pestaña del navbar y como
+ruta `/` (ya no redirige a `/boards`); "Histórico" quedó al final del navbar
+en la ruta `/history`.
 
-Decisión ya tomada con el usuario (no volver a preguntar): la pestaña
-"Actividades" existente **se queda como está** (programación recurrente). El
-listado nuevo se llama **"Histórico"** en el navbar (título de pantalla puede
-decir "Histórico de actividades" completo) y **va al final** del menú. El
-dashboard se llama **"Inicio"** y va **antes de "Tableros"** (primera
-pestaña); `/` deja de redirigir a `/boards` y pasa a ser la pantalla Inicio.
+Archivos nuevos: `components/dashboard/DashboardScreen.tsx` (+
+`dashboard.css`), `components/history/ActivitiesHistoryScreen.tsx` y
+`components/history/ActivityDetailModal.tsx` (comparten `history.css`).
+`App.tsx` y `Navbar.tsx` actualizados con las rutas/pestañas nuevas. El
+dashboard y el histórico leen directamente de `boardStore.boards` (ya
+cargado por `Shell` al montar) sin pedir nada nuevo al backend; el modal de
+detalle es el único que hace un fetch on-demand (`fetchCardHistory`) porque
+el historial de eventos no tiene selector reactivo en el store.
 
 ### Ya hecho (backend, commiteado)
 - Modelo `CardEvent` (`boards/models.py`): `card FK, action ('created'|'edited'|'moved'), detail (texto humano), at`.
@@ -48,57 +50,12 @@ pestaña); `/` deja de redirigir a `/boards` y pasa a ser la pantalla Inicio.
 - `boardStore.fetchCardHistory(cardId): Promise<CardEvent[]>` ya existe y
   llama `GET /cards/{id}/history/`.
 
-### Frontend — TODO (nada de esto existe todavía)
-1. **`ActivityDetailModal.tsx`** (estaba a medias, no se llegó a crear el
-   archivo): modal grande (`<Modal width={720ish}>` — el componente `Modal`
-   ya cierra al hacer click en el overlay, no hay que tocar eso) que reciba
-   boardId+cardId, muestre: título, chip de tablero, chip de estado, medalla
-   si `done`; una fila de stats (creada = `card.createdAt` vía
-   `formatIsoDateTimeShort`, fecha programada = `card.date`+`card.time`,
-   finalización = `card.doneAt` o "Pendiente", pomodoros = `card.pomos`);
-   descripción completa; y la **traza**: combinar
-   `boardStore.fetchCardHistory(cardId)` (eventos created/edited/moved) con
-   las entradas de `logStore.log.filter(l => l.cardId === cardId)` (sesiones
-   de pomodoro, cada una como un ítem más de la traza), todo ordenado por
-   `at` descendente. Cargar el historial con `useEffect` al montar (fetch
-   async, no hay selector reactivo para esto — es on-demand).
-2. **`ActivitiesHistoryScreen.tsx`** (ruta `/history`, pantalla "Histórico"):
-   tabla con TODAS las actividades de TODOS los tableros del usuario. **No
-   hace falta pedir nada nuevo al backend** — ya está todo en
-   `boardStore.boards` (aplanar con
-   `boards.flatMap(b => b.columns.flatMap(c => c.cards.map(card => ({...}))))`).
-   Columnas: ID, Tablero (nombre + punto de color), Nombre, Fecha inicio
-   (`card.createdAt`), Fecha finalización (`card.doneAt` o "—"), botón Ver
-   (abre `ActivityDetailModal` con ese boardId/cardId vía estado local del
-   componente, no hace falta tocar `uiStore`).
-3. **`DashboardScreen.tsx`** (ruta `/`, pantalla "Inicio"): 3 tarjetas de
-   estadística agregando TODAS las tarjetas de TODOS los tableros:
-   - "A tiempo" = `status==='done' && medalOf(card,status).tier==='oro'`
-   - "Fuera de fecha" = `status==='done' && tier in ('plata','bronce')`
-   - "Sin resolver" = `status !== 'done'`
-   (usar `lib/medal.ts::medalOf`, ya existe). Opcional/no pedido pero fácil:
-   un desglose secundario por estado (pending/progress/waiting) ya que los
-   datos están ahí — no gastar mucho tiempo en esto, es secundario.
-4. **`Navbar.tsx`**: agregar a `NAV_TABS` `{label:'Inicio', path:'/'}` al
-   inicio del array y `{label:'Histórico', path:'/history'}` al final.
-   Revisar `isTabActive('/')` — con el matching actual
-   (`location.pathname.startsWith('/boards')` para Tableros, `===` para el
-   resto) debería andar bien poniendo `/` con match exacto, pero confirmarlo
-   porque `/` es prefijo de todo. El click en el logo/marca
-   (`navbar-brand`) probablemente debería ir a `/` en vez de `/boards` ahora
-   que existe un Inicio dedicado — decisión de UX razonable, no hace falta
-   volver a preguntar.
-5. **`App.tsx`**: ruta `/` → `<DashboardScreen />` (ya NO debe ser
-   `<Navigate to="/boards" replace />`); agregar ruta `/history` →
-   `<ActivitiesHistoryScreen />`; el catch-all `*` probablemente debería
-   redirigir a `/` en vez de `/boards` ahora.
-6. Después de armar todo: `npx tsc --noEmit`, `npm run lint`, `npm run build`,
-   y probar con Playwright igual que en el resto de la sesión (login real
-   contra el backend en :8001, crear una tarjeta de prueba, abrir el modal
-   grande, verificar que la traza muestre created/edited/moved en orden, y
-   que el dashboard cuente bien) — **limpiar cualquier dato de prueba real**
-   que se toque en el tablero "Atiempo" del usuario al terminar, como se hizo
-   en el resto de la sesión.
+### Frontend — hecho (ver resumen en la sección 0 de arriba)
+`ActivityDetailModal.tsx`, `ActivitiesHistoryScreen.tsx`, `DashboardScreen.tsx`,
+y los cambios de `Navbar.tsx`/`App.tsx` que describía este TODO ya están
+implementados y verificados (`tsc --noEmit`, `npm run lint`, `npm run build` y
+un smoke test con Playwright, todos limpios). El click en `navbar-brand` ahora
+navega a `/` en vez de `/boards`.
 
 ## 1. Origen y objetivo
 
@@ -179,15 +136,107 @@ Decisiones de implementación tomadas sin preguntar (detalles, no alcance):
 - **Música de tablero y video del modo inmersivo**: solo por URL, no upload de
   archivo (igual que se dejó pendiente en la sesión 1).
 
+### Sesión 3 — docker-compose para desarrollo
+
+El usuario pidió poder correr el proyecto en Docker. Se agregó
+`docker-compose.yml` (raíz) + `Dockerfile`/`.dockerignore` en `backend/` y
+`frontend/`.
+
+| Decisión | Elegido | Alternativas descartadas |
+| --- | --- | --- |
+| Modo | **Dev con hot-reload** (bind mount del código, `vite`/`runserver` normales) | Build de producción con nginx + gunicorn — no pedido, el proyecto sigue en desarrollo activo |
+| Puerto frontend publicado | **5174** (no 5173) | 5173 estaba ocupado en esta máquina por otro proyecto Docker corriendo en paralelo (`site_new-frontend`) — 5174 ya estaba en `CORS_ALLOWED_ORIGINS` de fábrica, así que no hizo falta tocar `.env` |
+| Puerto backend publicado | **8001** (igual que en local) | Consistente con la razón ya documentada arriba (Docker Desktop ocupa el 8000 de forma intermitente) |
+| node_modules / dependencias Python | **Se instalan dentro de la imagen** (`npm ci` / `pip install`), el código se monta encima con volumen | Instalar en cada arranque — más lento y no soluciona nada que la imagen no resuelva ya |
+
+Notas:
+- `docker-compose.yml` corre `python manage.py migrate` automáticamente antes
+  de `runserver` en cada arranque del contenedor backend — no hace falta
+  correrlo a mano la primera vez.
+- `db.sqlite3` sigue viviendo en `backend/` (bind mount), así que es el mismo
+  archivo tanto si se corre local como en Docker — no hay una base de datos
+  paralela para el modo contenedor.
+- Si `docker compose build` falla porque el daemon no está corriendo en
+  Windows, hay que abrir Docker Desktop primero (puede tardar unos segundos
+  en levantar el motor).
+
+### Sesión 4 — despliegue en EC2 (IP + puerto, sin dominio todavía)
+
+El usuario pidió desplegar en un EC2 existente (`44.196.44.72`, acceso por
+`emasoft.pem`, usuario `ubuntu`). Ese servidor **no está dedicado a este
+proyecto** — ya corre otros dos proyectos del usuario en Docker:
+
+- `ema_stickers` → puerto 80 (Nginx + Django/Gunicorn + Postgres)
+- `emasoft` → puerto 8080 (mismo patrón)
+
+Ambos publican su contenedor `web` directo al host, sin un reverse proxy
+compartido delante. Se reusó exactamente el patrón de esos dos proyectos
+(documentado en `ema_stickers/docs/DESPLIEGUE_DOCKER_AWS.md` en ese mismo
+servidor): Nginx sirve el build de React y hace proxy a Django/Gunicorn por
+`/api/`, `/admin/`, `/static/`; solo el contenedor `web` se publica al host.
+
+| Decisión | Elegido | Por qué |
+| --- | --- | --- |
+| Puerto publicado | **8010** | 80 y 8080 ya estaban tomados por los otros dos proyectos del mismo servidor; el usuario pidió explícitamente "un puerto diferente 8010" en vez de resolver el dominio/DNS por ahora |
+| Dominio | **Ninguno todavía** | `emasoft.co` (el dominio real del usuario) ya está en producción en otro servidor (`192.99.84.49`, DNS en Dongee, con correo real: SPF+DKIM+DMARC configurados) — migrar o tocar ese DNS es una decisión aparte, de mayor riesgo, que se dejó pendiente. Ver más abajo. |
+| Base de datos | **SQLite** (no Postgres) | El proyecto ya usa SQLite en dev y no tenía código para Postgres (a diferencia de `ema_stickers`); agregar Postgres era scope extra no pedido. Se persiste en un volumen Docker con nombre (`sqlite_data`) para sobrevivir a un `docker compose up -d --build`. |
+| Estáticos de Django | **Whitenoise** dentro de Gunicorn (no volumen + `alias` en Nginx como en `ema_stickers`) | Más simple: no hay `media/` (este proyecto no tiene subida de archivos), así que no hacía falta la maquinaria de volúmenes compartidos — Nginx solo hace `proxy_pass` de `/static/` al backend. |
+| Compose de prod | Archivo nuevo **`docker-compose.prod.yml`** (+ `Dockerfile.prod` en `backend/` y `frontend/`) separado del `docker-compose.yml` de dev que ya existía | Mismo patrón que el proyecto `emasoft` en ese servidor (que también distingue `docker-compose.yml` de dev vs `docker-compose.prod.yml`) — no se tocó el compose de desarrollo. |
+
+**Cambios de código en `backend/` para producción** (no rompen dev local):
+`kamban_backend/settings.py` — `WhiteNoiseMiddleware`, `STATIC_ROOT`,
+`STORAGES` (whitenoise), `CSRF_TRUSTED_ORIGINS` (nuevo, vacío por defecto),
+`DATABASES.NAME` ahora lee `SQLITE_PATH` si está seteada (si no, sigue
+siendo `BASE_DIR/db.sqlite3` como siempre). También se corrigió un bug real:
+`CORS_ALLOWED_ORIGINS=""` (vacío, el valor correcto en prod porque front y
+back quedan bajo el mismo origen) se convertía en `['']` con `.split(',')` y
+`django-cors-headers` lo rechazaba al arrancar (`corsheaders.E013`) — ahora
+se filtran los strings vacíos. `requirements.txt` sumó `gunicorn` y
+`whitenoise`. Nuevo `backend/entrypoint.sh` (migrate + collectstatic antes de
+levantar Gunicorn) y `backend/Dockerfile.prod`.
+
+**Frontend**: `frontend/Dockerfile.prod` (build multi-stage, Nginx sirve
+`dist/`). Importante: a diferencia de `ema_stickers` (que usa
+`VITE_API_URL=""` porque su `api.js` arma `${API_URL}${path}` con `path`
+incluyendo ya `/api/...`), **este proyecto** arma las URLs distinto
+(`lib/api.ts`: `API_BASE_URL = VITE_API_URL`, y los stores llaman
+`api.get('/boards/')` sin el prefijo `/api`) — por eso acá
+`VITE_API_URL` en producción debe ser `/api` (no vacío), si no todas las
+rutas quedarían pegadas a `/boards/` en vez de `/api/boards/` y darían 404.
+
+Todo esto se probó primero en local (`docker compose -p ema_kamban_prod -f
+docker-compose.prod.yml up -d --build`, con `.env` de prueba) antes de tocar
+el servidor — build limpio, migraciones y `collectstatic` corriendo solos,
+login end-to-end con Playwright sin errores de consola/red. El `.env` de
+prueba y el volumen se borraron (`down -v`) al terminar.
+
+**Pendiente / decisión del usuario, no resuelta todavía:**
+- Cómo y cuándo apuntar `emasoft.co` (o un subdominio) a este proyecto — el
+  usuario prefirió NO tocar el dominio por ahora y usar IP:puerto
+  directamente. Si más adelante se retoma: la arquitectura ideal para los 3
+  proyectos en el mismo servidor es un reverse proxy compartido (Nginx en el
+  host, o un contenedor "edge") que enrute por subdominio y le dé HTTPS a
+  los tres vía Certbot — hoy `ema_stickers` y `emasoft` no tienen HTTPS
+  (puerto 443 libre). Migrar esto requiere reconfigurar brevemente esos dos
+  proyectos (dejan de publicar 80/8080 directo), así que no se debe hacer
+  sin confirmación explícita del usuario.
+- Elastic IP: no se confirmó si `44.196.44.72` es una IP elástica (fija) o
+  la pública efímera de EC2 — importante antes de depender de esa IP desde
+  afuera a largo plazo.
+- Security Group: hay que confirmar que el puerto 8010 esté abierto a
+  entrada (0.0.0.0/0 o donde corresponda) en el Security Group de la
+  instancia — no se puede verificar/tocar por SSH, es configuración de AWS.
+
 ## 3. Estructura del repositorio
 
 ```
 ema_kamban/                  <- raíz del repo git (este documento vive aquí dentro)
-├── README.md                <- instrucciones rápidas de arranque (frontend + backend)
+├── README.md                <- instrucciones rápidas de arranque (frontend + backend + docker)
+├── docker-compose.yml        <- levanta backend + frontend en contenedores (dev, hot-reload)
 ├── documentacion/
 │   └── PROYECTO.md           <- este archivo
-├── frontend/                 <- app React (ver sección 4)
-└── backend/                  <- proyecto Django (ver sección 5)
+├── frontend/                 <- app React (ver sección 4), incluye Dockerfile
+└── backend/                  <- proyecto Django (ver sección 5), incluye Dockerfile
 ```
 
 ## 4. Frontend (`frontend/`)
@@ -545,6 +594,13 @@ GET /api/health/                      AllowAny, sin datos — smoke check
    ```
    Si no existe superusuario todavía: `python manage.py createsuperuser`.
 4. Antes de cambiar el modelo de usuario o el esquema de `Board`/`Card`, tener
-   en cuenta que ya hay datos reales posibles en `db.sqlite3` (no es un mock
-   descartable como en la sesión 1) — coordinar con el usuario antes de un
-   reset de base de datos.
+   en cuenta que puede haber datos reales en `db.sqlite3` (no asumir que es un
+   mock descartable) — coordinar con el usuario antes de un reset de base de
+   datos.
+5. Si el entorno es nuevo (checkout limpio), `node_modules/` y `.venv/` pueden
+   no tener todo lo que pide `package.json`/`requirements.txt` aunque ya
+   existan como carpetas — correr `npm install` (frontend) y
+   `pip install -r requirements.txt` (backend, con el venv activado) antes de
+   asumir que falta código. Así se destapó, en la sesión que agregó Inicio/
+   Histórico, que faltaban `@dnd-kit/core` y `djangorestframework-simplejwt`
+   instalados pese a estar en los manifiestos.

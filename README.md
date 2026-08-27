@@ -49,6 +49,58 @@ Sirve en `http://localhost:5173` (o el siguiente puerto libre si ese está
 ocupado). Inicia sesión con el correo/contraseña del superusuario que creaste
 en el backend.
 
+## Docker
+
+Levanta ambos servicios con hot-reload (equivalente a correr `npm run dev` y
+`manage.py runserver` a mano, pero en contenedores):
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+docker compose up --build
+```
+
+- Backend en `http://localhost:8001` (corre `migrate` automáticamente al
+  arrancar el contenedor).
+- Frontend en `http://localhost:5174` (dentro del contenedor Vite escucha en
+  el puerto 5173; se publica en 5174 porque en esta máquina el 5173 ya lo usa
+  otro proyecto — si en la tuya está libre, cambiá el mapeo de puertos en
+  `docker-compose.yml` a `5173:5173`).
+- El código de `backend/` y `frontend/` está montado como volumen, así que los
+  cambios se reflejan sin reconstruir la imagen; solo hay que reconstruir
+  (`docker compose build`) si cambia `requirements.txt` o `package.json`.
+- `db.sqlite3` vive en `backend/` igual que en modo local, así que los datos
+  persisten entre reinicios del contenedor.
+- Antes del primer login hace falta un admin: `docker compose exec backend
+  python manage.py createsuperuser`.
+
+## Docker (producción)
+
+`docker-compose.prod.yml` levanta el build real (React compilado servido por
+Nginx + Gunicorn, sin dev servers) — es lo que corre en el EC2. SQLite se
+persiste en un volumen con nombre (`sqlite_data`) para que sobreviva a un
+rebuild de la imagen.
+
+```bash
+cp .env.prod.example .env
+nano .env   # DJANGO_SECRET_KEY real, DJANGO_ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser
+```
+
+Sirve todo en el puerto **8010** (Nginx es el único contenedor publicado al
+host; `backend` no está expuesto, solo Nginx le habla por la red interna de
+Docker). Para actualizar tras un cambio de código:
+
+```bash
+git pull
+docker compose -f docker-compose.prod.yml up -d --build
+docker image prune -f
+```
+
+Detalles de por qué está armado así (puerto 8010, sin Postgres, sin dominio
+todavía) en `documentacion/PROYECTO.md`, sección "Sesión 4".
+
 ## Usuarios y roles
 
 No hay registro público: los administradores (`is_staff=True`) crean cuentas

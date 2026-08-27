@@ -1,0 +1,179 @@
+.history-screen {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 34px 22px 90px;
+}
+
+.history-screen h1 {
+  margin: 0;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.history-screen > p.mono {
+  margin: 7px 0 22px;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.history-table {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--card);
+}
+
+.history-row {
+  display: grid;
+  grid-template-columns: 0.5fr 1.3fr 2fr 1.1fr 1.1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.history-row:last-child {
+  border-bottom: none;
+}
+
+.history-row-head {
+  color: var(--dim);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--input);
+}
+
+.history-board {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.history-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.history-title {
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-actions {
+  justify-self: flex-end;
+}
+
+.history-actions .btn {
+  padding: 6px 10px;
+  font-size: 11.5px;
+}
+
+/* Activity detail modal */
+
+.activity-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.activity-detail-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.activity-detail-stat-value {
+  font-size: 15px;
+}
+
+.activity-detail-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-line;
+  overflow-wrap: break-word;
+}
+
+.activity-trace {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.activity-trace-row {
+  display: flex;
+  gap: 10px;
+}
+
+.activity-trace-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-solid);
+  margin-top: 6px;
+  flex: 0 0 auto;
+}
+
+.activity-trace-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.activity-trace-row:last-child .activity-trace-body {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.activity-trace-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.activity-trace-label {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.activity-trace-at {
+  font-size: 10.5px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.activity-trace-detail {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+@media (max-width: 720px) {
+  .history-row {
+    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: row;
+  }
+
+  .activity-detail-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

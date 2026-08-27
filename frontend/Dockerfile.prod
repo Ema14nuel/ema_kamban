@@ -1,0 +1,21 @@
+# ---------- Etapa 1: compilar React (Vite) ----------
+FROM node:22-alpine AS build
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+# lib/api.ts arma cada URL como `${VITE_API_URL}${path}` y "path" NO incluye
+# "/api" (ver boardStore.ts: api.get('/boards/')). Por eso en producción
+# VITE_API_URL debe quedar en "/api" (relativo, mismo origen vía Nginx).
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
+RUN npm run build
+
+# ---------- Etapa 2: servir con Nginx ----------
+FROM nginx:1.27-alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
