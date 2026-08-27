@@ -47,7 +47,7 @@ class BoardSerializer(serializers.ModelSerializer):
 class RoutineSerializer(serializers.ModelSerializer):
     class Meta:
         model = Routine
-        fields = ['id', 'board', 'title', 'date_from', 'date_to', 'days', 'count', 'created_at']
+        fields = ['id', 'board', 'title', 'description', 'date_from', 'date_to', 'days', 'count', 'created_at']
         read_only_fields = ['id', 'count', 'created_at']
 
 

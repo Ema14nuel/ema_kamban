@@ -56,6 +56,11 @@ export default function RoutinesScreen() {
         </div>
 
         <div className="field">
+          <label>Descripción</label>
+          <textarea value={form.description} onChange={(e) => patch({ description: e.target.value })} rows={3} placeholder="Opcional" />
+        </div>
+
+        <div className="field">
           <label>Tablero</label>
           <Select2 options={boardOptions} value={form.boardId} onChange={(id) => patch({ boardId: id })} placeholder="Elegir tablero" />
         </div>
@@ -99,7 +104,20 @@ export default function RoutinesScreen() {
             <div key={r.id} className="routine-card card-fade">
               <div className="routine-card-head">
                 <span className="routine-card-title">{r.title}</span>
-                <button type="button" className="activity-remove" onClick={() => removeRoutine(r.id)} aria-label="Borrar">
+                <button
+                  type="button"
+                  className="activity-remove"
+                  onClick={() => {
+                    if (
+                      confirm(
+                        `¿Borrar "${r.title}"? Las actividades pendientes generadas por esta programación se borran de los tableros. Las que ya se completaron o se perdieron quedan en el Histórico.`,
+                      )
+                    ) {
+                      removeRoutine(r.id);
+                    }
+                  }}
+                  aria-label="Borrar"
+                >
                   ✕
                 </button>
               </div>
@@ -108,6 +126,7 @@ export default function RoutinesScreen() {
                   {board.name}
                 </span>
               )}
+              {r.description && <p className="routine-description">{r.description}</p>}
               <span className="routine-range mono">
                 {r.from} → {r.to}
               </span>

@@ -42,7 +42,7 @@ export default function ActivityCardView({ boardId, card, status, accentColor }:
           className="activity-remove"
           onClick={(e) => {
             e.stopPropagation();
-            removeCard(boardId, card.id);
+            if (confirm(`¿Borrar la actividad "${card.title}"?`)) removeCard(boardId, card.id);
           }}
           aria-label="Eliminar"
         >

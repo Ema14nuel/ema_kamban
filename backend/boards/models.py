@@ -49,6 +49,11 @@ class Column(models.Model):
 
 class Card(models.Model):
     board = models.ForeignKey(Board, related_name='cards', on_delete=models.CASCADE)
+    # Solo para tarjetas generadas por una programación recurrente — permite
+    # borrarlas en cascada de forma selectiva (ver RoutineViewSet.perform_destroy).
+    # SET_NULL porque una tarjeta completada o perdida sobrevive al borrado de
+    # la rutina que la generó (queda "suelta", como si se hubiera creado a mano).
+    routine = models.ForeignKey('Routine', related_name='cards', null=True, blank=True, on_delete=models.SET_NULL)
     # Sin choices: puede ser una de las 4 claves fijas o la key de una Column
     # personalizada del mismo tablero — se valida en el serializer/vista.
     status = models.CharField(max_length=20, default='pending')
@@ -107,6 +112,7 @@ class CardNote(models.Model):
 class Routine(models.Model):
     board = models.ForeignKey(Board, related_name='routines', on_delete=models.CASCADE)
     title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default='')
     date_from = models.CharField(max_length=10)
     date_to = models.CharField(max_length=10)
     days = models.JSONField(default=dict)

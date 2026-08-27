@@ -57,6 +57,7 @@ export default function BoardModal() {
               type="button"
               className="btn btn-danger"
               onClick={() => {
+                if (!confirm(`¿Borrar el tablero "${editing.name}"? Se borran también todas sus actividades.`)) return;
                 removeBoard(editing.id);
                 closeModal();
               }}

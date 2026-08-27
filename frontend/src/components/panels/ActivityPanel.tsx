@@ -155,6 +155,7 @@ export default function ActivityPanel() {
               type="button"
               className="btn btn-danger"
               onClick={() => {
+                if (!confirm(`¿Borrar la actividad "${card.title}"?`)) return;
                 removeCard(board.id, card.id);
                 closeFocus();
               }}

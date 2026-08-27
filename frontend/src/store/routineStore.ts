@@ -2,10 +2,12 @@ import { create } from 'zustand';
 import type { DayKey, DaySchedule, Routine } from '../types';
 import { DAY_KEYS, DAY_LABELS } from '../types';
 import { api, ApiError } from '../lib/api';
+import { todayIso } from '../lib/date';
 import { useBoardStore } from './boardStore';
 
 export interface RoutineForm {
   title: string;
+  description: string;
   boardId: string | null;
   from: string;
   to: string;
@@ -19,6 +21,7 @@ function makeDay(on: boolean): DaySchedule {
 export function emptyRoutineForm(): RoutineForm {
   return {
     title: '',
+    description: '',
     boardId: null,
     from: '',
     to: '',
@@ -47,6 +50,7 @@ interface ApiRoutine {
   id: number;
   board: number;
   title: string;
+  description: string;
   date_from: string;
   date_to: string;
   days: Record<DayKey, DaySchedule>;
@@ -54,7 +58,16 @@ interface ApiRoutine {
 }
 
 function apiRoutineToRoutine(r: ApiRoutine): Routine {
-  return { id: String(r.id), boardId: String(r.board), title: r.title, from: r.date_from, to: r.date_to, days: r.days, count: r.count };
+  return {
+    id: String(r.id),
+    boardId: String(r.board),
+    title: r.title,
+    description: r.description,
+    from: r.date_from,
+    to: r.date_to,
+    days: r.days,
+    count: r.count,
+  };
 }
 
 interface RoutineState {
@@ -67,7 +80,7 @@ interface RoutineState {
   removeRoutine: (id: string) => Promise<void>;
 }
 
-export const useRoutineStore = create<RoutineState>()((set) => ({
+export const useRoutineStore = create<RoutineState>()((set, get) => ({
   routines: [],
   loaded: false,
   error: null,
@@ -90,6 +103,7 @@ export const useRoutineStore = create<RoutineState>()((set) => ({
       const data = await api.post<ApiRoutine>('/routines/', {
         board: Number(form.boardId),
         title: form.title.trim(),
+        description: form.description.trim(),
         date_from: form.from,
         date_to: form.to,
         days: form.days,
@@ -106,9 +120,14 @@ export const useRoutineStore = create<RoutineState>()((set) => ({
   },
 
   removeRoutine: async (id) => {
+    const routine = get().routines.find((r) => r.id === id);
     try {
-      await api.del(`/routines/${id}/`);
+      await api.del(`/routines/${id}/?today=${todayIso()}`);
       set((s) => ({ routines: s.routines.filter((r) => r.id !== id) }));
+      // El backend borra en cascada las tarjetas pendientes generadas por
+      // esta rutina (las completadas/perdidas sobreviven) — hay que
+      // refrescar el tablero para que el store deje de mostrar las borradas.
+      if (routine) await useBoardStore.getState().refreshBoard(routine.boardId);
     } catch {
       set({ error: 'No se pudo borrar la programación.' });
     }

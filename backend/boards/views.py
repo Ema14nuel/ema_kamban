@@ -180,6 +180,7 @@ class RoutineViewSet(viewsets.ModelViewSet):
             raise PermissionDenied()
 
         title = serializer.validated_data['title'].strip()
+        description = serializer.validated_data.get('description', '').strip()
         date_from = serializer.validated_data['date_from']
         date_to = serializer.validated_data['date_to']
         days = serializer.validated_data['days']
@@ -193,33 +194,61 @@ class RoutineViewSet(viewsets.ModelViewSet):
         if end < start or not title:
             return Response({'detail': 'rango de fechas invalido'}, status=400)
 
-        cards_to_create = []
+        # Primero se arma la lista en memoria (sin tocar la BD) para saber si
+        # hay algo que crear antes de comprometernos a guardar la Routine.
+        days_to_create = []
         d = start
-        while d <= end and len(cards_to_create) < 400:
+        while d <= end and len(days_to_create) < 400:
             cfg = days.get(DAY_KEYS[d.weekday()])
             if cfg and cfg.get('on'):
                 if cfg.get('mode') == 'range':
                     time_val = cfg.get('start', '')
-                    desc = f"Entre {cfg.get('start', '')} y {cfg.get('end', '')}"
+                    range_note = f"Entre {cfg.get('start', '')} y {cfg.get('end', '')}"
                 else:
                     time_val = cfg.get('time', '')
-                    desc = ''
-                cards_to_create.append(
-                    Card(board=board, status='pending', title=title, desc=desc, date=d.isoformat(), time=time_val)
-                )
+                    range_note = ''
+                desc = '\n\n'.join(part for part in [description, range_note] if part)
+                days_to_create.append((d.isoformat(), time_val, desc))
             d += timedelta(days=1)
 
-        if not cards_to_create:
+        if not days_to_create:
             return Response({'detail': 'no se genero ninguna actividad con ese horario'}, status=400)
 
+        # La Routine se crea antes que las Card para poder enlazarlas — así,
+        # si más adelante se borra la programación, sabemos cuáles tarjetas
+        # borrar en cascada y cuáles conservar (ver perform_destroy).
+        routine = Routine.objects.create(
+            board=board, title=title, description=description, date_from=date_from, date_to=date_to,
+            days=days, count=len(days_to_create),
+        )
+        cards_to_create = [
+            Card(board=board, routine=routine, status='pending', title=title, desc=desc, date=iso_date, time=time_val)
+            for iso_date, time_val, desc in days_to_create
+        ]
         created_cards = Card.objects.bulk_create(cards_to_create)
         CardEvent.objects.bulk_create(
             [CardEvent(card=c, action='created', detail='Creada por programación recurrente en Pending') for c in created_cards]
         )
-        routine = Routine.objects.create(
-            board=board, title=title, date_from=date_from, date_to=date_to, days=days, count=len(cards_to_create)
-        )
         return Response(RoutineSerializer(routine).data, status=201)
+
+    def perform_destroy(self, instance):
+        # Regla de negocio: borrar una programación recurrente borra sus
+        # tarjetas de los tableros, PERO las que ya se completaron o las que
+        # se perdieron (fecha pasada sin completar) quedan — solo se ven en
+        # Histórico a partir de ahí, ya no en ningún tablero activo.
+        #
+        # "Hoy" lo manda el cliente (?today=YYYY-MM-DD, en su hora local) en
+        # vez de usar date.today() del servidor: el contenedor corre en UTC,
+        # así que cerca de la medianoche el "hoy" del servidor y el del
+        # navegador pueden diferir en un día, y este corte tiene que coincidir
+        # exactamente con lo que el usuario ve como "perdida" en su pantalla.
+        today = self.request.query_params.get('today') or date.today().isoformat()
+        cards = Card.objects.filter(routine=instance)
+        keep_ids = [c.id for c in cards if c.status == 'done' or (c.date and c.date < today)]
+        cards.exclude(id__in=keep_ids).delete()
+        # SET_NULL en Card.routine desvincula automáticamente las que se
+        # conservan al borrar esta Routine.
+        instance.delete()
 
 
 class LogEntryViewSet(viewsets.ReadOnlyModelViewSet):

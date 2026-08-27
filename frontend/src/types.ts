@@ -109,6 +109,7 @@ export interface DaySchedule {
 export interface Routine {
   id: string;
   title: string;
+  description: string;
   boardId: string;
   from: string;
   to: string;
