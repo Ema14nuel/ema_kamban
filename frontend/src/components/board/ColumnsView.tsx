@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core';
-import type { Board, Column, StatusKey } from '../../types';
-import { STATUSES } from '../../types';
+import type { Board, Column } from '../../types';
 import { useUiStore } from '../../store/uiStore';
+import { useBoardStore } from '../../store/boardStore';
 import ActivityCardView from './ActivityCardView';
 import './columnsView.css';
 
@@ -11,22 +11,36 @@ interface ColumnsViewProps {
 
 interface DroppableColumnProps {
   boardId: string;
-  status: StatusKey;
-  title: string;
-  color: string;
-  column: Column | undefined;
+  column: Column;
 }
 
-function DroppableColumn({ boardId, status, title, color, column }: DroppableColumnProps) {
+function DroppableColumn({ boardId, column }: DroppableColumnProps) {
   const openModal = useUiStore((s) => s.openModal);
-  const { setNodeRef, isOver } = useDroppable({ id: status });
+  const removeColumn = useBoardStore((s) => s.removeColumn);
+  const { setNodeRef, isOver } = useDroppable({ id: column.status });
+  const { status, title, color } = column;
 
   return (
     <div ref={setNodeRef} className={`column ${isOver ? 'is-over' : ''}`} style={{ borderColor: isOver ? color : undefined }}>
       <div className="column-head" style={{ borderBottomColor: color }}>
         <span className="column-dot" style={{ background: color }} />
         <span className="column-title">{title}</span>
-        <span className="column-count mono">{column?.cards.length || 0}</span>
+        <span className="column-count mono">{column.cards.length}</span>
+        {column.isCustom && (
+          <button
+            type="button"
+            className="column-add"
+            onClick={() => {
+              if (confirm(`¿Borrar la columna "${title}"? Sus actividades vuelven a Pending.`)) {
+                removeColumn(boardId, column.customColumnId as string);
+              }
+            }}
+            aria-label={`Borrar columna ${title}`}
+            title="Borrar columna"
+          >
+            ✕
+          </button>
+        )}
         <button
           type="button"
           className="column-add"
@@ -37,28 +51,27 @@ function DroppableColumn({ boardId, status, title, color, column }: DroppableCol
         </button>
       </div>
       <div className="column-cards">
-        {(column?.cards || []).map((card) => (
+        {column.cards.map((card) => (
           <ActivityCardView key={card.id} boardId={boardId} card={card} status={status} accentColor={color} />
         ))}
-        {(column?.cards.length || 0) === 0 && <div className="column-empty">Sin actividades</div>}
+        {column.cards.length === 0 && <div className="column-empty">Sin actividades</div>}
       </div>
     </div>
   );
 }
 
 export default function ColumnsView({ board }: ColumnsViewProps) {
+  const openModal = useUiStore((s) => s.openModal);
+
   return (
     <div className="columns-view">
-      {STATUSES.map((s) => (
-        <DroppableColumn
-          key={s.key}
-          boardId={board.id}
-          status={s.key}
-          title={s.title}
-          color={s.color}
-          column={board.columns.find((c) => c.status === s.key)}
-        />
+      {board.columns.map((c) => (
+        <DroppableColumn key={c.id} boardId={board.id} column={c} />
       ))}
+      <div className="column-new" onClick={() => openModal({ kind: 'column', boardId: board.id })}>
+        <div className="column-new-icon">+</div>
+        <span>Nueva columna</span>
+      </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ from . import views
 
 router = DefaultRouter()
 router.register('boards', views.BoardViewSet, basename='board')
+router.register('columns', views.ColumnViewSet, basename='column')
 router.register('cards', views.CardViewSet, basename='card')
 router.register('routines', views.RoutineViewSet, basename='routine')
 router.register('log', views.LogEntryViewSet, basename='logentry')

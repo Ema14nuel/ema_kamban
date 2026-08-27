@@ -19,7 +19,11 @@ export default function ConsolidatedScreen() {
   const activeIds = filter ?? allBoardIds;
   const visibleBoards = boards.filter((b) => activeIds.includes(b.id));
 
-  const allEntries = visibleBoards.flatMap((b) => b.columns.flatMap((c) => c.cards.map((card) => ({ card, board: b, status: c.status }))));
+  // Las columnas personalizadas de cada tablero son locales a ese tablero —
+  // el consolidado solo agrega las 4 columnas fijas entre tableros.
+  const allEntries = visibleBoards.flatMap((b) =>
+    b.columns.filter((c) => !c.isCustom).flatMap((c) => c.cards.map((card) => ({ card, board: b, status: c.status }))),
+  );
   const totalCount = allEntries.length;
 
   return (

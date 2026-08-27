@@ -21,16 +21,37 @@ class Board(models.Model):
         return self.name
 
 
-class Card(models.Model):
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('progress', 'In Progress'),
-        ('waiting', 'Waiting'),
-        ('done', 'Completed'),
-    ]
+class Column(models.Model):
+    """Columna adicional definida por el usuario para un tablero puntual.
 
+    Las 4 columnas fijas (pending/progress/waiting/done) siguen sin tener fila
+    propia acá — solo existen como constantes compartidas con el frontend.
+    Estas son las que un usuario agrega desde un tablero ("más columnas, con
+    el nombre que quieran"); no se reflejan en el consolidado entre tableros,
+    solo dentro del tablero al que pertenecen.
+    """
+
+    board = models.ForeignKey(Board, related_name='columns', on_delete=models.CASCADE)
+    # "col-<id>" asignado después del primer save (ver perform_create) — nunca
+    # puede chocar con una de las 4 claves fijas.
+    key = models.CharField(max_length=20, blank=True, default='')
+    title = models.CharField(max_length=60)
+    color = models.CharField(max_length=20, default='#64748b')
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'created_at']
+
+    def __str__(self):
+        return f'{self.board_id}:{self.title}'
+
+
+class Card(models.Model):
     board = models.ForeignKey(Board, related_name='cards', on_delete=models.CASCADE)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    # Sin choices: puede ser una de las 4 claves fijas o la key de una Column
+    # personalizada del mismo tablero — se valida en el serializer/vista.
+    status = models.CharField(max_length=20, default='pending')
     title = models.CharField(max_length=200)
     desc = models.TextField(blank=True, default='')
     date = models.CharField(max_length=10, blank=True, default='')
@@ -63,6 +84,24 @@ class CardEvent(models.Model):
 
     def __str__(self):
         return f'{self.card_id} {self.action}: {self.detail}'
+
+
+class CardNote(models.Model):
+    """Nota suelta con fecha/hora, aparte de la descripción de la tarjeta.
+
+    De solo agregar (no se edita ni se borra) — es un registro cronológico,
+    como el resto de la traza de la actividad.
+    """
+
+    card = models.ForeignKey(Card, related_name='notes', on_delete=models.CASCADE)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.card_id}: {self.text[:30]}'
 
 
 class Routine(models.Model):

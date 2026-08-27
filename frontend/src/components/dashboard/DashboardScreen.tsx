@@ -13,7 +13,9 @@ export default function DashboardScreen() {
     let unresolved = 0;
     const byStatus: Record<string, number> = {};
     for (const board of boards) {
-      for (const col of board.columns) {
+      // Las columnas personalizadas de cada tablero no entran en este
+      // resumen entre tableros, solo las 4 fijas.
+      for (const col of board.columns.filter((c) => !c.isCustom)) {
         byStatus[col.status] = (byStatus[col.status] || 0) + col.cards.length;
         for (const card of col.cards) {
           if (col.status !== 'done') {

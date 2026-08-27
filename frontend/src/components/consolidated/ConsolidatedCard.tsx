@@ -1,4 +1,4 @@
-import type { ActivityCard, Board, StatusKey } from '../../types';
+import type { ActivityCard, Board } from '../../types';
 import { medalOf } from '../../lib/medal';
 import { formatShortDate } from '../../lib/date';
 import { tint } from '../../lib/color';
@@ -8,7 +8,7 @@ import '../board/activityCard.css';
 interface ConsolidatedCardProps {
   board: Board;
   card: ActivityCard;
-  status: StatusKey;
+  status: string;
 }
 
 export default function ConsolidatedCard({ board, card, status }: ConsolidatedCardProps) {

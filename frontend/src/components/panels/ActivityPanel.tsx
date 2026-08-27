@@ -1,9 +1,10 @@
+import { useEffect, useState } from 'react';
 import { useUiStore } from '../../store/uiStore';
 import { useBoardStore } from '../../store/boardStore';
 import { useLogStore } from '../../store/logStore';
-import { STATUSES } from '../../types';
+import type { CardNote } from '../../types';
 import { tint } from '../../lib/color';
-import { formatShortDate } from '../../lib/date';
+import { formatShortDate, formatDateTime } from '../../lib/date';
 import './panels.css';
 
 export default function ActivityPanel() {
@@ -15,15 +16,49 @@ export default function ActivityPanel() {
   const patchCard = useBoardStore((s) => s.patchCard);
   const moveCard = useBoardStore((s) => s.moveCard);
   const removeCard = useBoardStore((s) => s.removeCard);
+  const fetchCardNotes = useBoardStore((s) => s.fetchCardNotes);
+  const addCardNote = useBoardStore((s) => s.addCardNote);
   const log = useLogStore((s) => s.log);
 
-  if (!focus) return null;
-  const board = boards.find((b) => b.id === focus.boardId);
-  const column = board?.columns.find((c) => c.cards.some((k) => k.id === focus.cardId));
-  const card = column?.cards.find((k) => k.id === focus.cardId);
-  if (!board || !column || !card) return null;
+  const board = boards.find((b) => b.id === focus?.boardId);
+  const column = board?.columns.find((c) => c.cards.some((k) => k.id === focus?.cardId));
+  const card = column?.cards.find((k) => k.id === focus?.cardId);
+
+  const [notes, setNotes] = useState<CardNote[]>([]);
+  const [noteText, setNoteText] = useState('');
+  const [notesLoading, setNotesLoading] = useState(true);
+
+  useEffect(() => {
+    if (!card) return;
+    let cancelled = false;
+    setNotesLoading(true);
+    setNoteText('');
+    fetchCardNotes(card.id).then((data) => {
+      if (!cancelled) {
+        setNotes(data);
+        setNotesLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card?.id]);
+
+  if (!focus || !board || !column || !card) return null;
   const status = column.status;
   const sessions = log.filter((l) => l.cardId === card.id);
+
+  async function onAddNote() {
+    if (!card) return;
+    const text = noteText.trim();
+    if (!text) return;
+    const note = await addCardNote(card.id, text);
+    if (note) {
+      setNotes((prev) => [note, ...prev]);
+      setNoteText('');
+    }
+  }
 
   return (
     <aside className="activity-panel slide-in">
@@ -57,15 +92,15 @@ export default function ActivityPanel() {
       {focusTab === 'detail' ? (
         <div className="panel-detail">
           <div className="panel-kanban">
-            {STATUSES.map((s) => (
+            {board.columns.map((c) => (
               <div
-                key={s.key}
-                className={`panel-kanban-item ${status === s.key ? 'active' : ''}`}
-                style={{ boxShadow: status === s.key ? `0 0 0 2px ${s.color}` : undefined }}
-                onClick={() => moveCard(board.id, card.id, s.key)}
+                key={c.id}
+                className={`panel-kanban-item ${status === c.status ? 'active' : ''}`}
+                style={{ boxShadow: status === c.status ? `0 0 0 2px ${c.color}` : undefined }}
+                onClick={() => moveCard(board.id, card.id, c.status)}
               >
-                <span className="column-dot" style={{ background: s.color }} />
-                {s.title}
+                <span className="column-dot" style={{ background: c.color }} />
+                {c.title}
               </div>
             ))}
           </div>
@@ -73,6 +108,35 @@ export default function ActivityPanel() {
           <div className="field">
             <label>Descripción</label>
             <textarea value={card.desc} onChange={(e) => patchCard(board.id, card.id, { desc: e.target.value })} rows={4} />
+          </div>
+
+          <div className="field">
+            <label>Notas</label>
+            <div className="panel-note-add">
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Agregar una nota…"
+                rows={2}
+              />
+              <button type="button" className="btn btn-accent" disabled={!noteText.trim()} onClick={onAddNote}>
+                Agregar
+              </button>
+            </div>
+            {notesLoading ? (
+              <div className="panel-empty">Cargando…</div>
+            ) : notes.length === 0 ? (
+              <div className="panel-empty">Sin notas todavía.</div>
+            ) : (
+              <div className="panel-note-list">
+                {notes.map((n) => (
+                  <div key={n.id} className="panel-note-row">
+                    <span className="panel-note-at mono">{formatDateTime(n.createdAt)}</span>
+                    <p className="panel-note-text">{n.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="row-2">

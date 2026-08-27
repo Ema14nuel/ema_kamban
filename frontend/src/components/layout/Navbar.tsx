@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUiStore } from '../../store/uiStore';
 import { displayName, useAuthStore } from '../../store/authStore';
@@ -31,6 +31,7 @@ export default function Navbar() {
   const user = useAuthStore((s) => s.user);
   const pomo = usePomodoroStore();
   const navRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const el = navRef.current;
@@ -41,6 +42,10 @@ export default function Navbar() {
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
 
   const initials = displayName(user)
     .split(' ')
@@ -67,56 +72,73 @@ export default function Navbar() {
         <span className="navbar-title">Tableros</span>
       </div>
 
-      <div className="navbar-tabs">
-        {NAV_TABS.map((tab) => (
-          <div
-            key={tab.path}
-            className={`navbar-tab ${isTabActive(tab.path) ? 'active' : ''}`}
-            onClick={() => navigate(tab.path)}
-          >
-            {tab.label}
+      <div className={`navbar-menu ${menuOpen ? 'open' : ''}`}>
+        <div className="navbar-tabs">
+          {NAV_TABS.map((tab) => (
+            <div
+              key={tab.path}
+              className={`navbar-tab ${isTabActive(tab.path) ? 'active' : ''}`}
+              onClick={() => navigate(tab.path)}
+            >
+              {tab.label}
+            </div>
+          ))}
+        </div>
+
+        {boards.length > 0 && (
+          <div className="navbar-boards">
+            {boards.map((b) => (
+              <div
+                key={b.id}
+                className="navbar-board-pill"
+                onClick={() => {
+                  setActiveBoardId(b.id);
+                  navigate(`/boards/${b.id}`);
+                }}
+              >
+                <span className="navbar-board-dot" style={{ background: b.color }} />
+                {b.name}
+              </div>
+            ))}
           </div>
-        ))}
+        )}
+
+        <div className="navbar-actions">
+          <input
+            type="text"
+            className="navbar-search"
+            placeholder="Buscar…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button type="button" className="navbar-theme-btn" onClick={toggleTheme}>
+            <span className="mono">{theme === 'dark' ? '☾' : '☀'}</span>
+            {theme === 'dark' ? 'Oscuro' : 'Claro'}
+          </button>
+          <button
+            type="button"
+            className={`navbar-pomo-btn ${panel === 'pomodoro' ? 'active' : ''}`}
+            onClick={togglePomodoroPanel}
+          >
+            <span className="mono">{mmss(pomo.left)}</span>
+            Pomodoro
+          </button>
+        </div>
       </div>
 
-      <div className="navbar-boards">
-        {boards.map((b) => (
-          <div
-            key={b.id}
-            className="navbar-board-pill"
-            onClick={() => {
-              setActiveBoardId(b.id);
-              navigate(`/boards/${b.id}`);
-            }}
-          >
-            <span className="navbar-board-dot" style={{ background: b.color }} />
-            {b.name}
-          </div>
-        ))}
-      </div>
+      <button
+        type="button"
+        className="navbar-hamburger"
+        onClick={() => setMenuOpen((v) => !v)}
+        aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
+        aria-expanded={menuOpen}
+      >
+        <span />
+        <span />
+        <span />
+      </button>
 
-      <div className="navbar-actions">
-        <input
-          type="text"
-          className="navbar-search"
-          placeholder="Buscar…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <button type="button" className="navbar-theme-btn" onClick={toggleTheme}>
-          <span className="mono">{theme === 'dark' ? '☾' : '☀'}</span>
-          {theme === 'dark' ? 'Oscuro' : 'Claro'}
-        </button>
-        <button
-          type="button"
-          className={`navbar-pomo-btn ${panel === 'pomodoro' ? 'active' : ''}`}
-          onClick={togglePomodoroPanel}
-        >
-          <span className="mono">{mmss(pomo.left)}</span>
-          Pomodoro
-        </button>
-        <UserMenu initials={initials} />
-      </div>
+      <UserMenu initials={initials} />
     </div>
   );
 }

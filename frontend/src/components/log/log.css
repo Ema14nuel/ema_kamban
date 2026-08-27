@@ -76,3 +76,19 @@
   color: var(--dim);
   white-space: nowrap;
 }
+
+@media (max-width: 560px) {
+  .log-row {
+    flex-wrap: wrap;
+  }
+
+  .log-row-info {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .log-row-dots {
+    order: 3;
+    flex: 1 1 100%;
+  }
+}

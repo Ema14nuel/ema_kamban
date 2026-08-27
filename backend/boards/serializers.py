@@ -1,6 +1,15 @@
 from rest_framework import serializers
 
-from .models import Board, Card, CardEvent, LogEntry, Routine
+from .models import Board, Card, CardEvent, CardNote, Column, LogEntry, Routine
+
+FIXED_STATUSES = {'pending', 'progress', 'waiting', 'done'}
+
+
+class ColumnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Column
+        fields = ['id', 'board', 'key', 'title', 'color', 'order']
+        read_only_fields = ['id', 'key', 'order']
 
 
 class CardSerializer(serializers.ModelSerializer):
@@ -9,13 +18,30 @@ class CardSerializer(serializers.ModelSerializer):
         fields = ['id', 'board', 'status', 'title', 'desc', 'date', 'time', 'pomos', 'done_at', 'created_at']
         read_only_fields = ['id', 'pomos', 'done_at', 'created_at']
 
+    def validate(self, attrs):
+        status = attrs.get('status')
+        board = attrs.get('board') or getattr(self.instance, 'board', None)
+        if status and board:
+            valid = FIXED_STATUSES | set(board.columns.values_list('key', flat=True))
+            if status not in valid:
+                raise serializers.ValidationError({'status': 'Columna inválida para este tablero.'})
+        return attrs
+
+
+class CardNoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CardNote
+        fields = ['id', 'card', 'text', 'created_at']
+        read_only_fields = ['id', 'card', 'created_at']
+
 
 class BoardSerializer(serializers.ModelSerializer):
     cards = CardSerializer(many=True, read_only=True)
+    columns = ColumnSerializer(many=True, read_only=True)
 
     class Meta:
         model = Board
-        fields = ['id', 'name', 'color', 'bg_type', 'bg_value', 'music_url', 'music_name', 'cards']
+        fields = ['id', 'name', 'color', 'bg_type', 'bg_value', 'music_url', 'music_name', 'cards', 'columns']
 
 
 class RoutineSerializer(serializers.ModelSerializer):

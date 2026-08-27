@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ActivityCard, Board, CardEvent, LogEntry, StatusKey } from '../types';
+import type { ActivityCard, Board, CardEvent, CardNote, LogEntry } from '../types';
 import { STATUSES } from '../types';
 import { api } from '../lib/api';
 import { useMascotStore } from './mascotStore';
@@ -7,7 +7,7 @@ import { useMascotStore } from './mascotStore';
 interface ApiCard {
   id: number;
   board: number;
-  status: StatusKey;
+  status: string;
   title: string;
   desc: string;
   date: string;
@@ -25,6 +25,22 @@ interface ApiCardEvent {
   at: string;
 }
 
+interface ApiCardNote {
+  id: number;
+  card: number;
+  text: string;
+  created_at: string;
+}
+
+interface ApiColumn {
+  id: number;
+  board: number;
+  key: string;
+  title: string;
+  color: string;
+  order: number;
+}
+
 interface ApiBoard {
   id: number;
   name: string;
@@ -34,27 +50,44 @@ interface ApiBoard {
   music_url: string;
   music_name: string;
   cards: ApiCard[];
+  columns: ApiColumn[];
 }
 
-function cardsToColumns(cards: ApiCard[]) {
-  return STATUSES.map((s) => ({
+function mapApiCard(c: ApiCard): ActivityCard {
+  return {
+    id: String(c.id),
+    title: c.title,
+    desc: c.desc,
+    date: c.date,
+    time: c.time,
+    pomos: c.pomos,
+    doneAt: c.done_at || undefined,
+    createdAt: c.created_at,
+  };
+}
+
+function cardsToColumns(cards: ApiCard[], customColumns: ApiColumn[]) {
+  const fixed = STATUSES.map((s) => ({
     id: `col-${s.key}`,
-    status: s.key,
-    cards: cards
-      .filter((c) => c.status === s.key)
-      .map(
-        (c): ActivityCard => ({
-          id: String(c.id),
-          title: c.title,
-          desc: c.desc,
-          date: c.date,
-          time: c.time,
-          pomos: c.pomos,
-          doneAt: c.done_at || undefined,
-          createdAt: c.created_at,
-        }),
-      ),
+    status: s.key as string,
+    title: s.title,
+    color: s.color,
+    isCustom: false,
+    cards: cards.filter((c) => c.status === s.key).map(mapApiCard),
   }));
+  const custom = customColumns
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((cc) => ({
+      id: `col-${cc.key}`,
+      status: cc.key,
+      title: cc.title,
+      color: cc.color,
+      isCustom: true,
+      customColumnId: String(cc.id),
+      cards: cards.filter((c) => c.status === cc.key).map(mapApiCard),
+    }));
+  return [...fixed, ...custom];
 }
 
 const PATCH_DEBOUNCE_MS = 600;
@@ -111,7 +144,7 @@ function apiBoardToBoard(b: ApiBoard): Board {
     bgValue: b.bg_value,
     musicUrl: b.music_url,
     musicName: b.music_name,
-    columns: cardsToColumns(b.cards),
+    columns: cardsToColumns(b.cards, b.columns),
   };
 }
 
@@ -129,7 +162,7 @@ export interface NewCardInput {
   desc: string;
   date: string;
   time: string;
-  status: StatusKey;
+  status: string;
 }
 
 interface BoardStoreState {
@@ -144,14 +177,19 @@ interface BoardStoreState {
   removeBoard: (id: string) => Promise<void>;
   refreshBoard: (boardId: string) => Promise<void>;
 
+  addColumn: (boardId: string, title: string, color: string) => Promise<void>;
+  removeColumn: (boardId: string, customColumnId: string) => Promise<void>;
+
   addCard: (boardId: string, input: NewCardInput) => Promise<void>;
   patchCard: (boardId: string, cardId: string, patch: Partial<Pick<ActivityCard, 'title' | 'desc' | 'date' | 'time'>>) => Promise<void>;
   removeCard: (boardId: string, cardId: string) => Promise<void>;
-  moveCard: (boardId: string, cardId: string, toStatus: StatusKey) => Promise<void>;
+  moveCard: (boardId: string, cardId: string, toStatus: string) => Promise<void>;
   completePomodoro: (boardId: string, cardId: string, minutes: number) => Promise<LogEntry | null>;
   fetchCardHistory: (cardId: string) => Promise<CardEvent[]>;
+  fetchCardNotes: (cardId: string) => Promise<CardNote[]>;
+  addCardNote: (cardId: string, text: string) => Promise<CardNote | null>;
 
-  findCard: (boardId: string, cardId: string) => { board: Board; card: ActivityCard; status: StatusKey } | null;
+  findCard: (boardId: string, cardId: string) => { board: Board; card: ActivityCard; status: string } | null;
   countOf: (board: Board) => number;
   pendingCountOf: (board: Board) => number;
 }
@@ -227,6 +265,24 @@ export const useBoardStore = create<BoardStoreState>()((set, get) => ({
     }
   },
 
+  addColumn: async (boardId, title, color) => {
+    try {
+      await api.post('/columns/', { board: Number(boardId), title, color });
+      await get().refreshBoard(boardId);
+    } catch {
+      set({ error: 'No se pudo crear la columna.' });
+    }
+  },
+
+  removeColumn: async (boardId, customColumnId) => {
+    try {
+      await api.del(`/columns/${customColumnId}/`);
+      await get().refreshBoard(boardId);
+    } catch {
+      set({ error: 'No se pudo borrar la columna.' });
+    }
+  },
+
   addCard: async (boardId, input) => {
     try {
       const data = await api.post<ApiCard>('/cards/', {
@@ -237,15 +293,7 @@ export const useBoardStore = create<BoardStoreState>()((set, get) => ({
         date: input.date,
         time: input.time,
       });
-      const card: ActivityCard = {
-        id: String(data.id),
-        title: data.title,
-        desc: data.desc,
-        date: data.date,
-        time: data.time,
-        pomos: data.pomos,
-        createdAt: data.created_at,
-      };
+      const card = mapApiCard(data);
       set((s) => ({
         boards: s.boards.map((b) =>
           b.id === boardId ? { ...b, columns: b.columns.map((c) => (c.status === input.status ? { ...c, cards: c.cards.concat(card) } : c)) } : b,
@@ -336,6 +384,25 @@ export const useBoardStore = create<BoardStoreState>()((set, get) => ({
       return data.map((e) => ({ id: String(e.id), action: e.action, detail: e.detail, at: new Date(e.at).getTime() }));
     } catch {
       return [];
+    }
+  },
+
+  fetchCardNotes: async (cardId) => {
+    try {
+      const data = await api.get<ApiCardNote[]>(`/cards/${cardId}/notes/`);
+      return data.map((n) => ({ id: String(n.id), text: n.text, createdAt: new Date(n.created_at).getTime() }));
+    } catch {
+      return [];
+    }
+  },
+
+  addCardNote: async (cardId, text) => {
+    try {
+      const data = await api.post<ApiCardNote>(`/cards/${cardId}/notes/`, { text });
+      return { id: String(data.id), text: data.text, createdAt: new Date(data.created_at).getTime() };
+    } catch {
+      set({ error: 'No se pudo guardar la nota.' });
+      return null;
     }
   },
 

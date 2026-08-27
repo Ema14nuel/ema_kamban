@@ -14,7 +14,6 @@ import { usePomodoroStore } from '../../store/pomodoroStore';
 import { useBoardStore } from '../../store/boardStore';
 import { useRoutineStore } from '../../store/routineStore';
 import { useLogStore } from '../../store/logStore';
-import { STATUSES, type StatusKey } from '../../types';
 import type { CardDragData } from '../board/dnd';
 
 export default function Shell() {
@@ -24,6 +23,7 @@ export default function Shell() {
   const openModal = useUiStore((s) => s.openModal);
   const activeBoardId = useUiStore((s) => s.activeBoardId);
   const tick = usePomodoroStore((s) => s.tick);
+  const boards = useBoardStore((s) => s.boards);
   const moveCard = useBoardStore((s) => s.moveCard);
   const fetchBoards = useBoardStore((s) => s.fetchBoards);
   const fetchRoutines = useRoutineStore((s) => s.fetchRoutines);
@@ -62,8 +62,11 @@ export default function Shell() {
     if (!data || !overId) return;
     if (overId === 'pomodoro-dropzone') {
       addPomodoroTask(data.boardId, data.cardId);
-    } else if (STATUSES.some((s) => s.key === overId)) {
-      moveCard(data.boardId, data.cardId, overId as StatusKey);
+    } else {
+      const board = boards.find((b) => b.id === data.boardId);
+      if (board?.columns.some((c) => c.status === overId)) {
+        moveCard(data.boardId, data.cardId, String(overId));
+      }
     }
   }
 

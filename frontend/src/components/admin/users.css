@@ -53,6 +53,16 @@
   font-size: 13px;
 }
 
+@media (max-width: 720px) {
+  .users-table {
+    overflow-x: auto;
+  }
+
+  .users-row {
+    min-width: 640px;
+  }
+}
+
 .users-row:last-child {
   border-bottom: none;
 }

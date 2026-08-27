@@ -31,9 +31,24 @@ export interface ActivityCard {
   createdAt?: string;
 }
 
+/** Columna personalizada agregada a un tablero puntual (no las 4 fijas). */
+export interface CustomColumn {
+  id: string;
+  key: string;
+  title: string;
+  color: string;
+  order: number;
+}
+
 export interface Column {
   id: string;
-  status: StatusKey;
+  /** Una de las 4 StatusKey fijas, o la `key` de una CustomColumn del tablero. */
+  status: string;
+  title: string;
+  color: string;
+  isCustom: boolean;
+  /** Solo para columnas personalizadas: id de la Column en el backend (para editar/borrar). */
+  customColumnId?: string;
   cards: ActivityCard[];
 }
 
@@ -143,21 +158,44 @@ export interface Medal {
 
 export type SpriteKey = 'chico' | 'chica' | 'perro' | 'gato';
 
-export const SPRITES: { k: SpriteKey; name: string; src: string }[] = [
-  { k: 'chico', name: 'Chico', src: '/sprites/chico.png' },
-  { k: 'chica', name: 'Chica', src: '/sprites/chica.png' },
+export interface SpriteDef {
+  k: SpriteKey;
+  name: string;
+  /** Imagen estática — vista previa en Configuración, y sprite de perro/gato (sin animación cuadro por cuadro). */
+  src: string;
+  /** Cuadros del ciclo de caminata, en orden. Si falta, la mascota usa `src` con el rebote CSS de siempre. */
+  walk?: string[];
+  /** Cuadros del salto (al completar una actividad), en orden. */
+  jump?: string[];
+}
+
+export const SPRITES: SpriteDef[] = [
+  {
+    k: 'chico',
+    name: 'Chico',
+    src: '/sprites/chico-idle.png',
+    walk: ['/sprites/chico-walk-1.png', '/sprites/chico-walk-2.png', '/sprites/chico-walk-3.png', '/sprites/chico-walk-4.png'],
+    jump: ['/sprites/chico-jump-1.png', '/sprites/chico-jump-2.png', '/sprites/chico-jump-3.png'],
+  },
+  {
+    k: 'chica',
+    name: 'Chica',
+    src: '/sprites/chica-idle.png',
+    walk: ['/sprites/chica-walk-1.png', '/sprites/chica-walk-2.png', '/sprites/chica-walk-3.png', '/sprites/chica-walk-4.png'],
+    jump: ['/sprites/chica-jump-1.png', '/sprites/chica-jump-2.png', '/sprites/chica-jump-3.png'],
+  },
   { k: 'perro', name: 'Perro', src: '/sprites/perro.png' },
   { k: 'gato', name: 'Gato', src: '/sprites/gato.png' },
 ];
 
 export type Theme = 'dark' | 'light';
 
-export type ModalKind = 'board' | 'activity' | 'profile' | 'settings' | null;
+export type ModalKind = 'board' | 'activity' | 'profile' | 'settings' | 'column' | null;
 
 export interface ModalState {
   kind: ModalKind;
   boardId?: string | null;
-  status?: StatusKey;
+  status?: string;
 }
 
 export type CardEventAction = 'created' | 'edited' | 'moved';
@@ -167,4 +205,10 @@ export interface CardEvent {
   action: CardEventAction;
   detail: string;
   at: number;
+}
+
+export interface CardNote {
+  id: string;
+  text: string;
+  createdAt: number;
 }

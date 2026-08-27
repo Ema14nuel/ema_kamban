@@ -74,3 +74,31 @@
   border: 1.5px dashed var(--border);
   border-radius: 10px;
 }
+
+.column-new {
+  min-height: 120px;
+  border-radius: 14px;
+  border: 1.5px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--dim);
+}
+
+.column-new-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--input);
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+}
+
+.column-new span {
+  font-size: 12.5px;
+  font-weight: 600;
+}

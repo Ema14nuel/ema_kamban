@@ -1,5 +1,5 @@
 import { useDraggable } from '@dnd-kit/core';
-import type { ActivityCard, StatusKey } from '../../types';
+import type { ActivityCard } from '../../types';
 import { medalOf } from '../../lib/medal';
 import { formatShortDate } from '../../lib/date';
 import { useBoardStore } from '../../store/boardStore';
@@ -9,7 +9,7 @@ import './activityCard.css';
 interface ActivityCardViewProps {
   boardId: string;
   card: ActivityCard;
-  status: StatusKey;
+  status: string;
   accentColor: string;
 }
 

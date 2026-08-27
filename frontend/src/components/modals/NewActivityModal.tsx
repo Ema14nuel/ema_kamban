@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUiStore } from '../../store/uiStore';
 import { useBoardStore } from '../../store/boardStore';
-import { STATUSES, type StatusKey } from '../../types';
 import Select2 from '../common/Select2';
 import Modal from '../common/Modal';
 
@@ -16,9 +15,20 @@ export default function NewActivityModal() {
   const [desc, setDesc] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [status, setStatus] = useState<StatusKey>(modal.status || 'pending');
+  const [status, setStatus] = useState<string>(modal.status || 'pending');
 
   const boardOptions = boards.map((b) => ({ id: b.id, label: b.name, color: b.color }));
+  const selectedBoard = boards.find((b) => b.id === boardId);
+
+  // Si se cambia de tablero (o el actual no tiene esa columna, p. ej. una
+  // personalizada de otro tablero), volver a la primera columna disponible.
+  useEffect(() => {
+    if (!selectedBoard) return;
+    if (!selectedBoard.columns.some((c) => c.status === status)) {
+      setStatus(selectedBoard.columns[0]?.status || 'pending');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardId]);
 
   async function onSave() {
     if (!boardId || !title.trim()) return;
@@ -65,10 +75,10 @@ export default function NewActivityModal() {
       </div>
       <div className="field">
         <label>Estado</label>
-        <select value={status} onChange={(e) => setStatus(e.target.value as StatusKey)}>
-          {STATUSES.map((s) => (
-            <option key={s.key} value={s.key}>
-              {s.title}
+        <select value={status} onChange={(e) => setStatus(e.target.value)} disabled={!selectedBoard}>
+          {(selectedBoard?.columns ?? []).map((c) => (
+            <option key={c.id} value={c.status}>
+              {c.title}
             </option>
           ))}
         </select>

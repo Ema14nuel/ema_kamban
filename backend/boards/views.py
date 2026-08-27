@@ -6,13 +6,32 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from .models import Board, Card, CardEvent, LogEntry, Routine
-from .serializers import BoardSerializer, CardEventSerializer, CardSerializer, LogEntrySerializer, RoutineSerializer
+from .models import Board, Card, CardEvent, CardNote, Column, LogEntry, Routine
+from .serializers import (
+    BoardSerializer,
+    CardEventSerializer,
+    CardNoteSerializer,
+    CardSerializer,
+    ColumnSerializer,
+    LogEntrySerializer,
+    RoutineSerializer,
+)
 
 DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-VALID_STATUSES = {'pending', 'progress', 'waiting', 'done'}
+FIXED_STATUSES = {'pending', 'progress', 'waiting', 'done'}
 STATUS_LABELS = {'pending': 'Pending', 'progress': 'In Progress', 'waiting': 'Waiting', 'done': 'Completed'}
 EDITABLE_FIELD_LABELS = {'title': 'Título', 'desc': 'Descripción', 'date': 'Fecha', 'time': 'Hora'}
+
+
+def valid_statuses(board):
+    return FIXED_STATUSES | set(board.columns.values_list('key', flat=True))
+
+
+def status_label(board, status):
+    if status in STATUS_LABELS:
+        return STATUS_LABELS[status]
+    column = board.columns.filter(key=status).first()
+    return column.title if column else status
 
 
 @api_view(['GET'])
@@ -26,10 +45,35 @@ class BoardViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Board.objects.filter(owner=self.request.user).prefetch_related('cards')
+        return Board.objects.filter(owner=self.request.user).prefetch_related('cards', 'columns')
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+
+class ColumnViewSet(viewsets.ModelViewSet):
+    serializer_class = ColumnSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Column.objects.filter(board__owner=self.request.user)
+
+    def perform_create(self, serializer):
+        board = serializer.validated_data['board']
+        if board.owner_id != self.request.user.id:
+            raise PermissionDenied()
+        order = Column.objects.filter(board=board).count()
+        column = serializer.save(order=order)
+        # La key se arma con el id ya asignado, así nunca choca con las 4
+        # fijas ni con otra columna.
+        column.key = f'col-{column.id}'
+        column.save(update_fields=['key'])
+
+    def perform_destroy(self, instance):
+        # Las tarjetas que estaban en esta columna vuelven a Pending en vez
+        # de perderse.
+        Card.objects.filter(board=instance.board, status=instance.key).update(status='pending')
+        instance.delete()
 
 
 class CardViewSet(viewsets.ModelViewSet):
@@ -48,7 +92,7 @@ class CardViewSet(viewsets.ModelViewSet):
         if board.owner_id != self.request.user.id:
             raise PermissionDenied()
         card = serializer.save()
-        CardEvent.objects.create(card=card, action='created', detail=f'Creada en {STATUS_LABELS.get(card.status, card.status)}')
+        CardEvent.objects.create(card=card, action='created', detail=f'Creada en {status_label(board, card.status)}')
 
     def perform_update(self, serializer):
         old = serializer.instance
@@ -70,7 +114,7 @@ class CardViewSet(viewsets.ModelViewSet):
     def move(self, request, pk=None):
         card = self.get_object()
         to_status = request.data.get('status')
-        if to_status not in VALID_STATUSES:
+        if to_status not in valid_statuses(card.board):
             return Response({'detail': 'estado invalido'}, status=400)
         from_status = card.status
         card.status = to_status
@@ -80,7 +124,7 @@ class CardViewSet(viewsets.ModelViewSet):
         if from_status != to_status:
             CardEvent.objects.create(
                 card=card, action='moved',
-                detail=f'{STATUS_LABELS.get(from_status, from_status)} → {STATUS_LABELS.get(to_status, to_status)}',
+                detail=f'{status_label(card.board, from_status)} → {status_label(card.board, to_status)}',
             )
         return Response(CardSerializer(card).data)
 
@@ -89,6 +133,18 @@ class CardViewSet(viewsets.ModelViewSet):
         card = self.get_object()
         events = CardEvent.objects.filter(card=card).order_by('-at')
         return Response(CardEventSerializer(events, many=True).data)
+
+    @action(detail=True, methods=['get', 'post'])
+    def notes(self, request, pk=None):
+        card = self.get_object()
+        if request.method == 'POST':
+            text = (request.data.get('text') or '').strip()
+            if not text:
+                return Response({'detail': 'texto requerido'}, status=400)
+            note = CardNote.objects.create(card=card, text=text)
+            return Response(CardNoteSerializer(note).data, status=201)
+        notes = CardNote.objects.filter(card=card).order_by('-created_at')
+        return Response(CardNoteSerializer(notes, many=True).data)
 
     @action(detail=True, methods=['post'])
     def complete_pomodoro(self, request, pk=None):

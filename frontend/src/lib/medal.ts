@@ -1,7 +1,7 @@
-import type { ActivityCard, Medal, StatusKey } from '../types';
+import type { ActivityCard, Medal } from '../types';
 import { todayIso } from './date';
 
-export function medalOf(card: ActivityCard, status: StatusKey): Medal | null {
+export function medalOf(card: ActivityCard, status: string): Medal | null {
   if (status !== 'done') return null;
   const done = card.doneAt || todayIso();
   if (!card.date) {
