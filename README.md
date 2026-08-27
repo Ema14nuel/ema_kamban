@@ -77,20 +77,20 @@ docker compose up --build
 ## Docker (producción)
 
 `docker-compose.prod.yml` levanta el build real (React compilado servido por
-Nginx + Gunicorn, sin dev servers) — es lo que corre en el EC2. SQLite se
-persiste en un volumen con nombre (`sqlite_data`) para que sobreviva a un
-rebuild de la imagen.
+Nginx + Gunicorn, sin dev servers) más un contenedor de **Postgres** — es lo
+que corre en el EC2. Los datos persisten en un volumen con nombre
+(`postgres_data`) para que sobrevivan a un rebuild de la imagen.
 
 ```bash
 cp .env.prod.example .env
-nano .env   # DJANGO_SECRET_KEY real, DJANGO_ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS
+nano .env   # DJANGO_SECRET_KEY real, DJANGO_ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS, DB_PASSWORD
 docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser
 ```
 
 Sirve todo en el puerto **8010** (Nginx es el único contenedor publicado al
-host; `backend` no está expuesto, solo Nginx le habla por la red interna de
-Docker). Para actualizar tras un cambio de código:
+host; `backend` y `db` no están expuestos, solo se hablan por la red interna
+de Docker). Para actualizar tras un cambio de código:
 
 ```bash
 git pull
@@ -98,8 +98,12 @@ docker compose -f docker-compose.prod.yml up -d --build
 docker image prune -f
 ```
 
-Detalles de por qué está armado así (puerto 8010, sin Postgres, sin dominio
-todavía) en `documentacion/PROYECTO.md`, sección "Sesión 4".
+`docker-compose.yml` (dev) también levanta Postgres en contenedor, igual que
+producción — no hace falta instalar Postgres a mano para desarrollar.
+
+Detalles de por qué está armado así (puerto 8010, Postgres en contenedor en
+vez de RDS, sin dominio todavía) en `documentacion/PROYECTO.md`, secciones
+"Sesión 4" y "Sesión 4b".
 
 ## Usuarios y roles
 

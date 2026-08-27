@@ -223,9 +223,44 @@ prueba y el volumen se borraron (`down -v`) al terminar.
 - Elastic IP: no se confirmó si `44.196.44.72` es una IP elástica (fija) o
   la pública efímera de EC2 — importante antes de depender de esa IP desde
   afuera a largo plazo.
-- Security Group: hay que confirmar que el puerto 8010 esté abierto a
-  entrada (0.0.0.0/0 o donde corresponda) en el Security Group de la
-  instancia — no se puede verificar/tocar por SSH, es configuración de AWS.
+- Security Group: **resuelto** — el usuario abrió el puerto 8010 (Custom TCP,
+  0.0.0.0/0) en el Security Group `sg-0919963705aedf267` de la instancia.
+  Confirmado accesible desde afuera (`curl`/Playwright contra
+  `http://44.196.44.72:8010` en vivo, login end-to-end sin errores).
+
+### Sesión 4b — Postgres en contenedor (en vez de RDS)
+
+Después de desplegar con SQLite, el usuario pidió mover la base a Postgres.
+Se evaluó RDS primero (managed, quedó documentado el plan de VPC/Security
+Group), pero el usuario decidió simplificar: **Postgres corriendo en un
+contenedor Docker**, tanto en local (dev) como en el EC2 (prod) — mismo
+patrón que ya usa `ema_stickers` en ese servidor, sin depender de un servicio
+aparte de AWS.
+
+| Decisión | Elegido | Por qué |
+| --- | --- | --- |
+| RDS vs. contenedor | **Contenedor** (`postgres:16-alpine`, servicio `db`) | El usuario lo pidió explícitamente después de ver el plan de RDS — más simple, sin costo adicional de AWS, consistente con `ema_stickers` |
+| Puerto 5432 al host | **No publicado**, ni en dev ni en prod | El EC2 ya tiene el Postgres de `ema_stickers` ocupando `127.0.0.1:5432`; en Windows local otro proceso también lo tenía tomado. El backend habla con `db` por la red interna de Docker, no hace falta publicarlo. |
+| Arranque backend/db | **Healthcheck `pg_isready`** + `depends_on: condition: service_healthy` | `depends_on` sin condición solo espera a que el contenedor *arranque*, no a que Postgres acepte conexiones — causaba `connection refused` intermitente al primer `docker compose up`. En prod además `entrypoint.sh` sigue teniendo el loop de `nc` como refuerzo (igual que `ema_stickers`). |
+| SQLite | Sigue como **fallback** si `DB_ENGINE` no está seteado | No se quitó el branch de `settings.py` — dev sin Docker (`python manage.py runserver` directo) sigue funcionando igual que siempre. |
+
+`settings.py`: rama `DB_ENGINE == 'postgres'` (idéntica a la de `ema_stickers`)
+antes del `else` que ya tenía SQLite. `requirements.txt` sumó
+`psycopg2-binary`. `backend/Dockerfile.prod` sumó `build-essential`/`libpq-dev`
+(defensivo, `-binary` normalmente no los necesita) y `netcat-openbsd`.
+
+Probado en este orden antes de tocar el servidor: dev local (`docker compose
+up`, login con Playwright) → prod local (`docker compose -p ema_kamban_prod
+-f docker-compose.prod.yml up -d --build`, login con Playwright) → recién
+ahí `git push` + `git pull` en el EC2 + rebuild. Superusuario final:
+`admin@admin.com` / `Tableros2026!` (creado en el Postgres del EC2; el local
+tiene otro igual, para pruebas, en su propio volumen `postgres_data`).
+
+Volumen viejo `sqlite_data` en el EC2 quedó huérfano (ya no lo usa
+`docker-compose.prod.yml`) — no se borró por las dudas, pero no tenía datos
+reales (solo el superusuario de prueba de la sesión anterior). Se puede
+limpiar con `docker volume rm tableros_sqlite_data` si se confirma que no
+hace falta.
 
 ## 3. Estructura del repositorio
 
