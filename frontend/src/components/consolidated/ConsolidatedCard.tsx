@@ -9,14 +9,20 @@ interface ConsolidatedCardProps {
   board: Board;
   card: ActivityCard;
   status: string;
+  compact?: boolean;
 }
 
-export default function ConsolidatedCard({ board, card, status }: ConsolidatedCardProps) {
+export default function ConsolidatedCard({ board, card, status, compact }: ConsolidatedCardProps) {
   const openFocus = useUiStore((s) => s.openFocus);
   const medal = medalOf(card, status);
 
   return (
-    <div className="activity-card card-fade" style={{ borderLeftColor: board.color }} onClick={() => openFocus(board.id, card.id)}>
+    <div
+      className={`activity-card card-fade ${compact ? 'is-compact' : ''}`}
+      style={{ borderLeftColor: board.color }}
+      onClick={() => openFocus(board.id, card.id)}
+      title={compact ? card.title : undefined}
+    >
       <span className="activity-meta mono" style={{ background: tint(board.color, 0.16), color: board.color, alignSelf: 'flex-start' }}>
         {board.name}
       </span>
@@ -24,11 +30,13 @@ export default function ConsolidatedCard({ board, card, status }: ConsolidatedCa
         {medal && <span className="activity-medal" style={{ background: medal.color, boxShadow: `0 0 0 2px ${medal.shade}` }} title={medal.label} />}
         <div className="activity-title">{card.title}</div>
       </div>
-      {card.desc && <div className="activity-desc">{card.desc}</div>}
-      <span className="activity-meta mono">
-        {formatShortDate(card.date)}
-        {card.time ? ` · ${card.time}` : ''}
-      </span>
+      {!compact && card.desc && <div className="activity-desc">{card.desc}</div>}
+      {!compact && (
+        <span className="activity-meta mono">
+          {formatShortDate(card.date)}
+          {card.time ? ` · ${card.time}` : ''}
+        </span>
+      )}
     </div>
   );
 }

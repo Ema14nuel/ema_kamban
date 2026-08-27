@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useBoardStore } from '../../store/boardStore';
 import { useUiStore } from '../../store/uiStore';
 import { STATUSES } from '../../types';
@@ -15,6 +16,8 @@ export default function ConsolidatedScreen() {
   const consolidatedView = useUiStore((s) => s.consolidatedView);
   const setConsolidatedView = useUiStore((s) => s.setConsolidatedView);
   const openFocus = useUiStore((s) => s.openFocus);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [expandedColumn, setExpandedColumn] = useState<string | null>(null);
 
   const allBoardIds = boards.map((b) => b.id);
   const activeIds = filter ?? allBoardIds;
@@ -33,11 +36,25 @@ export default function ConsolidatedScreen() {
 
   return (
     <div className="consolidated-screen">
-      <div className="consolidated-sidebar">
-        <span className="consolidated-sidebar-label">Tableros</span>
-        <div className="consolidated-check-row" onClick={() => toggleAllBoardsFilter(allBoardIds)}>
+      <div className={`consolidated-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+        <div className="consolidated-sidebar-top">
+          {!sidebarCollapsed && <span className="consolidated-sidebar-label">Tableros</span>}
+          <button
+            type="button"
+            className="consolidated-sidebar-toggle"
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            title={sidebarCollapsed ? 'Expandir filtro de tableros' : 'Minimizar filtro de tableros'}
+          >
+            {sidebarCollapsed ? '»' : '«'}
+          </button>
+        </div>
+        <div
+          className="consolidated-check-row"
+          onClick={() => toggleAllBoardsFilter(allBoardIds)}
+          title="Todas las actividades"
+        >
           <span className={`consolidated-check ${filter === null ? 'on' : ''}`}>{filter === null ? '✓' : ''}</span>
-          <span className="consolidated-check-text">Todas las actividades</span>
+          {!sidebarCollapsed && <span className="consolidated-check-text">Todas las actividades</span>}
         </div>
         {boards.map((b) => {
           const on = activeIds.includes(b.id);
@@ -48,12 +65,17 @@ export default function ConsolidatedScreen() {
               className="consolidated-check-row"
               style={{ background: on ? tint(b.color, 0.14) : 'transparent', borderColor: on ? tint(b.color, 0.4) : 'var(--border)' }}
               onClick={() => toggleBoardFilter(b.id, allBoardIds)}
+              title={b.name}
             >
               <span className="consolidated-check" style={{ background: on ? b.color : 'transparent', borderColor: on ? b.color : 'var(--border)', color: '#fff' }}>
                 {on ? '✓' : ''}
               </span>
-              <span className="consolidated-check-text">{b.name}</span>
-              <span className="consolidated-check-count mono">{count}</span>
+              {!sidebarCollapsed && (
+                <>
+                  <span className="consolidated-check-text">{b.name}</span>
+                  <span className="consolidated-check-count mono">{count}</span>
+                </>
+              )}
             </div>
           );
         })}
@@ -78,19 +100,29 @@ export default function ConsolidatedScreen() {
         </div>
 
         {consolidatedView === 'columns' ? (
-          <div className="consolidated-columns">
+          <div className={`consolidated-columns ${expandedColumn ? 'has-expanded' : ''}`}>
             {STATUSES.map((s) => {
               const entries = todayEntries.filter((e) => e.status === s.key);
+              const isExpanded = expandedColumn === s.key;
+              const isCompact = expandedColumn !== null && !isExpanded;
               return (
-                <div key={s.key} className="consolidated-column">
-                  <div className="consolidated-column-head" style={{ borderBottomColor: s.color }}>
+                <div
+                  key={s.key}
+                  className={`consolidated-column ${isExpanded ? 'is-expanded' : ''} ${isCompact ? 'is-compact' : ''}`}
+                >
+                  <div
+                    className="consolidated-column-head"
+                    style={{ borderBottomColor: s.color }}
+                    onClick={() => setExpandedColumn((cur) => (cur === s.key ? null : s.key))}
+                    title={isExpanded ? 'Restaurar tamaño' : 'Ampliar columna'}
+                  >
                     <span className="column-dot" style={{ background: s.color }} />
                     <span className="column-title">{s.title}</span>
                     <span className="column-count mono">{entries.length}</span>
                   </div>
                   <div className="consolidated-column-cards">
                     {entries.map((e) => (
-                      <ConsolidatedCard key={e.card.id} board={e.board} card={e.card} status={e.status} />
+                      <ConsolidatedCard key={e.card.id} board={e.board} card={e.card} status={e.status} compact={isCompact} />
                     ))}
                     {entries.length === 0 && <div className="column-empty">Sin actividades</div>}
                   </div>
