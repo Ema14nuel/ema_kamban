@@ -262,6 +262,49 @@ reales (solo el superusuario de prueba de la sesión anterior). Se puede
 limpiar con `docker volume rm tableros_sqlite_data` si se confirma que no
 hace falta.
 
+### Sesión 5 — foto de perfil, contraseña desde admin, actividades del día
+
+Cuatro pedidos en un mismo mensaje: navbar mobile (el hamburger/avatar
+quedaban pegados al logo en vez de a la derecha — un solo `margin-left:
+auto` en `.navbar-hamburger`), foto de perfil real (`User.avatar`,
+`Pillow`, `MEDIA_ROOT`/`MEDIA_URL`), poder resetear contraseña de un
+usuario desde `/users` (antes solo se podía poner al crear la cuenta), y el
+cambio grande: una actividad con fecha **solo se ve en el tablero/consolidado
+el día que le corresponde**; si pasa la fecha sin completarse, desaparece de
+ahí y pasa a estar "perdida" (se ve en Histórico). Sin fecha o ya completada
+siempre se ve. El Calendario (por tablero y consolidado) no se tocó — sigue
+mostrando todo, para eso existe.
+
+Decisión propia (no preguntada, el mensaje era ambiguo en la cuenta exacta):
+Histórico quedó con 6 pestañas — **Todas las actividades** (la tabla de
+siempre, sin filtrar) + una por cada estado fijo del kanban (**Pending / In
+Progress / Waiting / Completed**) + **Actividades perdidas** al final. Una
+tarjeta perdida no aparece duplicada en su pestaña de estado nominal, solo
+en "Actividades perdidas". La lógica de "visible hoy" / "perdida" vive en
+`frontend/src/lib/schedule.ts` (puramente derivada de `card.date` vs
+`todayIso()`, nada se persiste ni cambia en el backend).
+
+**Gotcha de Docker que costó un rato en el EC2**: `docker-compose.prod.yml`
+monta `nginx/default.conf` como bind mount de **un solo archivo**. Un bind
+mount de archivo se ata al *inodo* que existía al arrancar el contenedor —
+si `git pull` reemplaza el archivo (como suele hacer git, con un rename
+atómico en vez de editar in-place), el contenedor sigue viendo el contenido
+viejo aunque `cat` desde el host ya muestre el nuevo. Ni `docker compose up
+-d` (no detecta cambio de definición de servicio) ni `nginx -s reload`
+(relee desde el mismo inodo viejo que ya tiene montado) lo arreglan. Hace
+falta `docker compose -f docker-compose.prod.yml up -d --force-recreate
+web` después de cada `git pull` que toque `nginx/default.conf`.
+
+Ese mismo bug se manifestó como un problema real: Django arma la URL
+absoluta del avatar con `request.build_absolute_uri()`, que depende del
+header `Host` que le manda Nginx. `proxy_set_header Host $host;` en nginx
+**no incluye el puerto** aunque el request original sí lo tuviera —
+las URLs de `/media/...` y de las respuestas de `/api/` salían apuntando a
+`http://IP` (puerto 80, nada escuchando ahí) en vez de
+`http://IP:8010`, y el navegador las bloqueaba (`ERR_BLOCKED_BY_ORB`). Se
+cambió a `$http_host` (preserva el puerto) en las tres ubicaciones que
+proxean a `backend` (`/api/`, `/admin/`, `/static/`).
+
 ## 3. Estructura del repositorio
 
 ```
