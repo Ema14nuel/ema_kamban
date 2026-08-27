@@ -35,7 +35,7 @@ export default function UserMenu({ initials }: UserMenuProps) {
   return (
     <div className="navbar-user" ref={ref}>
       <div className="navbar-avatar" title="Cuenta" onClick={toggle}>
-        {initials}
+        {user?.avatar ? <img src={user.avatar} alt={displayName(user)} /> : initials}
       </div>
       {open && (
         <div className="navbar-user-menu pop-in">

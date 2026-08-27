@@ -2,6 +2,7 @@ import { useBoardStore } from '../../store/boardStore';
 import { useUiStore } from '../../store/uiStore';
 import { STATUSES } from '../../types';
 import { tint } from '../../lib/color';
+import { isCardVisibleToday } from '../../lib/schedule';
 import ConsolidatedCard from './ConsolidatedCard';
 import CalendarView from '../board/CalendarView';
 import './consolidated.css';
@@ -24,6 +25,10 @@ export default function ConsolidatedScreen() {
   const allEntries = visibleBoards.flatMap((b) =>
     b.columns.filter((c) => !c.isCustom).flatMap((c) => c.cards.map((card) => ({ card, board: b, status: c.status }))),
   );
+  // Igual que en el tablero: la vista de columnas solo muestra lo de hoy (+
+  // sin fecha + completadas) — lo pasado sin completar es "perdida" y se ve
+  // en Histórico. El calendario sigue mostrando todo, para eso existe.
+  const todayEntries = allEntries.filter((e) => isCardVisibleToday(e.card, e.status));
   const totalCount = allEntries.length;
 
   return (
@@ -75,7 +80,7 @@ export default function ConsolidatedScreen() {
         {consolidatedView === 'columns' ? (
           <div className="consolidated-columns">
             {STATUSES.map((s) => {
-              const entries = allEntries.filter((e) => e.status === s.key);
+              const entries = todayEntries.filter((e) => e.status === s.key);
               return (
                 <div key={s.key} className="consolidated-column">
                   <div className="consolidated-column-head" style={{ borderBottomColor: s.color }}>

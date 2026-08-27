@@ -22,6 +22,10 @@
 
 .navbar-hamburger {
   display: none;
+  /* Cuando .navbar-menu está oculto (mobile) no queda nada empujando el
+     hamburger y el avatar a la derecha — lo empuja este margin. En desktop
+     no aplica porque el botón ni siquiera se muestra. */
+  margin-left: auto;
   flex: 0 0 auto;
   width: 36px;
   height: 36px;
@@ -184,6 +188,13 @@
   font-size: 12.5px;
   font-weight: 800;
   letter-spacing: 0.02em;
+  overflow: hidden;
+}
+
+.navbar-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .navbar-user-menu {

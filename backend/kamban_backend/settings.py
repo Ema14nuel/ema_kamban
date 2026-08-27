@@ -179,6 +179,13 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# Foto de perfil de usuario. En dev, Django la sirve directo (ver urls.py,
+# solo si DEBUG). En producción, Nginx sirve /media/ desde un volumen
+# compartido (ver nginx/default.conf y docker-compose.prod.yml) — Whitenoise
+# es solo para STATIC_URL, no sirve archivos subidos en tiempo de ejecución.
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 STORAGES = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',

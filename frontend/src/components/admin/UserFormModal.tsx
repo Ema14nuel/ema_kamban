@@ -27,7 +27,14 @@ export default function UserFormModal({ user, onClose }: UserFormModalProps) {
     if (!isEditing && !password) return;
     setSaving(true);
     const ok = isEditing
-      ? await updateUser(user.id, { username: username.trim(), email: email.trim(), first_name: firstName, last_name: lastName, is_staff: isStaff })
+      ? await updateUser(user.id, {
+          username: username.trim(),
+          email: email.trim(),
+          first_name: firstName,
+          last_name: lastName,
+          is_staff: isStaff,
+          ...(password ? { password } : {}),
+        })
       : await createUser({ username: username.trim(), email: email.trim(), first_name: firstName, last_name: lastName, password, is_staff: isStaff });
     setSaving(false);
     if (ok) onClose();
@@ -69,12 +76,15 @@ export default function UserFormModal({ user, onClose }: UserFormModalProps) {
           <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} />
         </div>
       </div>
-      {!isEditing && (
-        <div className="field">
-          <label>Contraseña</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-        </div>
-      )}
+      <div className="field">
+        <label>{isEditing ? 'Nueva contraseña (opcional)' : 'Contraseña'}</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={isEditing ? 'Dejar vacío para no cambiarla' : '••••••••'}
+        />
+      </div>
       <label className="users-checkbox-row">
         <input type="checkbox" checked={isStaff} onChange={(e) => setIsStaff(e.target.checked)} />
         Es administrador (puede ver esta pantalla y gestionar usuarios)

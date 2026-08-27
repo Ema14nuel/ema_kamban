@@ -11,6 +11,7 @@ export interface AdminUser {
   is_staff: boolean;
   is_active: boolean;
   sprite: SpriteKey;
+  avatar: string | null;
   notify_on_pomodoro: boolean;
   date_joined: string;
 }
@@ -30,6 +31,8 @@ export interface EditUserInput {
   first_name: string;
   last_name: string;
   is_staff: boolean;
+  /** Si viene, resetea la contraseña de la cuenta. Se omite si está vacía. */
+  password?: string;
 }
 
 function errorDetail(err: unknown, fallback: string): string {

@@ -44,8 +44,13 @@ export default function UsersScreen() {
         {!loading && users.length === 0 && <div className="users-empty">No hay usuarios todavía.</div>}
         {users.map((u) => (
           <div key={u.id} className="users-row">
-            <span className="users-name">
-              {u.first_name || u.last_name ? `${u.first_name} ${u.last_name}`.trim() : u.username}
+            <span className="users-name-cell">
+              <span className="users-avatar">
+                {u.avatar ? <img src={u.avatar} alt="" /> : (u.first_name[0] || u.username[0] || '?').toUpperCase()}
+              </span>
+              <span className="users-name">
+                {u.first_name || u.last_name ? `${u.first_name} ${u.last_name}`.trim() : u.username}
+              </span>
             </span>
             <span className="mono users-email">{u.email}</span>
             <span>

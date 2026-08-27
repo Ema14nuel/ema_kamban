@@ -20,6 +20,7 @@ export interface CurrentUser {
   last_name: string;
   is_staff: boolean;
   sprite: SpriteKey;
+  avatar: string | null;
   notify_on_pomodoro: boolean;
 }
 
@@ -38,6 +39,8 @@ interface AuthState {
   goLogin: () => void;
   sendRecover: () => void;
   updateProfile: (patch: Partial<Pick<CurrentUser, 'first_name' | 'last_name' | 'sprite' | 'notify_on_pomodoro'>>) => Promise<void>;
+  uploadAvatar: (file: File) => Promise<void>;
+  removeAvatar: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -100,6 +103,32 @@ export const useAuthStore = create<AuthState>()(
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', ...(access ? { Authorization: `Bearer ${access}` } : {}) },
           body: JSON.stringify(patch),
+        });
+        if (!res.ok) return;
+        const user = await res.json();
+        set({ user });
+      },
+
+      uploadAvatar: async (file) => {
+        const access = get().accessToken;
+        const body = new FormData();
+        body.append('avatar', file);
+        const res = await fetch(`${API_BASE_URL}/auth/me/`, {
+          method: 'PATCH',
+          headers: { ...(access ? { Authorization: `Bearer ${access}` } : {}) },
+          body,
+        });
+        if (!res.ok) return;
+        const user = await res.json();
+        set({ user });
+      },
+
+      removeAvatar: async () => {
+        const access = get().accessToken;
+        const res = await fetch(`${API_BASE_URL}/auth/me/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', ...(access ? { Authorization: `Bearer ${access}` } : {}) },
+          body: JSON.stringify({ avatar: null }),
         });
         if (!res.ok) return;
         const user = await res.json();

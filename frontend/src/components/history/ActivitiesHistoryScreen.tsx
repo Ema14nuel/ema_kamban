@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useBoardStore } from '../../store/boardStore';
 import { formatIsoDateTimeShort, formatShortDate } from '../../lib/date';
+import { isCardMissed } from '../../lib/schedule';
+import { STATUSES } from '../../types';
 import ActivityDetailModal from './ActivityDetailModal';
 import './history.css';
 
@@ -10,15 +12,35 @@ interface HistoryRow {
   boardColor: string;
   cardId: string;
   title: string;
+  status: string;
   createdAt?: string;
   doneAt?: string;
+  missed: boolean;
 }
+
+type TabKey = 'all' | 'missed' | (typeof STATUSES)[number]['key'];
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'all', label: 'Todas las actividades' },
+  ...STATUSES.map((s) => ({ key: s.key as TabKey, label: s.title })),
+  { key: 'missed', label: 'Actividades perdidas' },
+];
+
+const EMPTY_MESSAGES: Record<TabKey, string> = {
+  all: 'Todavía no hay actividades.',
+  pending: 'No hay actividades en Pending.',
+  progress: 'No hay actividades en In Progress.',
+  waiting: 'No hay actividades en Waiting.',
+  done: 'No hay actividades completadas.',
+  missed: 'No hay actividades perdidas.',
+};
 
 export default function ActivitiesHistoryScreen() {
   const boards = useBoardStore((s) => s.boards);
+  const [tab, setTab] = useState<TabKey>('all');
   const [selected, setSelected] = useState<{ boardId: string; cardId: string } | null>(null);
 
-  const rows: HistoryRow[] = boards
+  const allRows: HistoryRow[] = boards
     .flatMap((b) =>
       b.columns.flatMap((c) =>
         c.cards.map(
@@ -28,21 +50,38 @@ export default function ActivitiesHistoryScreen() {
             boardColor: b.color,
             cardId: card.id,
             title: card.title,
+            status: c.status,
             createdAt: card.createdAt,
             doneAt: card.doneAt,
+            missed: isCardMissed(card, c.status),
           }),
         ),
       ),
     )
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
+  const rows =
+    tab === 'all'
+      ? allRows
+      : tab === 'missed'
+        ? allRows.filter((r) => r.missed)
+        : allRows.filter((r) => r.status === tab && !r.missed);
+
   return (
     <div className="history-screen">
       <h1>Histórico de actividades</h1>
-      <p className="mono">{rows.length} actividades en todos los tableros.</p>
+      <p className="mono">{rows.length} actividades{tab === 'all' ? ' en todos los tableros' : ''}.</p>
+
+      <div className="history-tabs">
+        {TABS.map((t) => (
+          <div key={t.key} className={`history-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>
+            {t.label}
+          </div>
+        ))}
+      </div>
 
       {rows.length === 0 ? (
-        <div className="log-empty">Todavía no hay actividades.</div>
+        <div className="log-empty">{EMPTY_MESSAGES[tab]}</div>
       ) : (
         <div className="history-table">
           <div className="history-row history-row-head mono">
