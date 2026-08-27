@@ -1,4 +1,24 @@
 services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+    # Sin "ports": "backend" le habla por la red interna de Docker (db:5432).
+    # No se publica ni siquiera en loopback porque este servidor ya tiene
+    # otro Postgres (de ema_stickers) ocupando 127.0.0.1:5432. Si hace falta
+    # un cliente de BD externo, usar "docker compose exec db psql ..." o
+    # publicar en un puerto distinto, p. ej. "127.0.0.1:5433:5432".
+
   backend:
     build:
       context: ./backend
@@ -10,9 +30,15 @@ services:
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
-      SQLITE_PATH: /data/db.sqlite3
-    volumes:
-      - sqlite_data:/data
+      DB_ENGINE: postgres
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db
+      DB_PORT: 5432
+    depends_on:
+      db:
+        condition: service_healthy
     # No se expone al exterior: solo "web" (Nginx) le habla, por la red interna.
 
   web:
@@ -30,4 +56,4 @@ services:
       - backend
 
 volumes:
-  sqlite_data:
+  postgres_data:

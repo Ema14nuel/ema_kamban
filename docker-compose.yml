@@ -1,4 +1,24 @@
 services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: tableros
+      POSTGRES_USER: tableros
+      POSTGRES_PASSWORD: tableros-dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tableros"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+    # Sin "ports": el backend le habla por la red interna de Docker (db:5432).
+    # Si querés conectar un cliente de BD local, descomentá y ajustá el
+    # puerto de host (5432 puede estar ocupado por otro Postgres/proyecto):
+    # ports:
+    #   - "127.0.0.1:5432:5432"
+
   backend:
     build: ./backend
     volumes:
@@ -7,6 +27,16 @@ services:
       - "8001:8000"
     env_file:
       - ./backend/.env
+    environment:
+      DB_ENGINE: postgres
+      DB_NAME: tableros
+      DB_USER: tableros
+      DB_PASSWORD: tableros-dev
+      DB_HOST: db
+      DB_PORT: 5432
+    depends_on:
+      db:
+        condition: service_healthy
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
 
   frontend:
@@ -20,3 +50,6 @@ services:
       - ./frontend/.env
     depends_on:
       - backend
+
+volumes:
+  postgres_data:
