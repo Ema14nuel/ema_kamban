@@ -13,11 +13,13 @@ services:
       interval: 2s
       timeout: 3s
       retries: 10
-    # Sin "ports": "backend" le habla por la red interna de Docker (db:5432).
-    # No se publica ni siquiera en loopback porque este servidor ya tiene
-    # otro Postgres (de ema_stickers) ocupando 127.0.0.1:5432. Si hace falta
-    # un cliente de BD externo, usar "docker compose exec db psql ..." o
-    # publicar en un puerto distinto, p. ej. "127.0.0.1:5433:5432".
+    ports:
+      # Solo en loopback del host: no queda expuesto a internet (el Security
+      # Group tampoco lo permitiría en 5433, pero además ni siquiera escucha
+      # en 0.0.0.0). Un cliente externo (Navicat, DBeaver, etc.) se conecta
+      # vía túnel SSH al 127.0.0.1:5433 del servidor. 5433 y no 5432 porque
+      # ema_stickers ya usa 127.0.0.1:5432 en este mismo servidor.
+      - "127.0.0.1:5433:5432"
 
   backend:
     build:
