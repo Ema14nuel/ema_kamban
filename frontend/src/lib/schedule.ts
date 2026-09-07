@@ -7,7 +7,16 @@ import { todayIso } from './date';
  * se ven el día que les corresponde.
  */
 export function isCardVisibleToday(card: ActivityCard, status: string): boolean {
-  if (status === 'done') return true;
+  if (status === 'done') {
+    // Solo se mantienen en el tablero las completadas esta semana. Las de
+    // semanas anteriores continúan disponibles en Histórico.
+    if (!card.doneAt) return false;
+    const today = todayIso();
+    const weekday = new Date(`${today}T12:00:00`).getDay();
+    const monday = new Date(`${today}T12:00:00`);
+    monday.setDate(monday.getDate() - (weekday === 0 ? 6 : weekday - 1));
+    return card.doneAt >= monday.toISOString().slice(0, 10) && card.doneAt <= today;
+  }
   if (!card.date) return true;
   return card.date === todayIso();
 }

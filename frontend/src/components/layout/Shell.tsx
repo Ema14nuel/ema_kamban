@@ -29,6 +29,9 @@ export default function Shell() {
   const fetchRoutines = useRoutineStore((s) => s.fetchRoutines);
   const fetchLog = useLogStore((s) => s.fetchLog);
   const addPomodoroTask = usePomodoroStore((s) => s.addTask);
+  const pomoRunning = usePomodoroStore((s) => s.running);
+  const pomoLeft = usePomodoroStore((s) => s.left);
+  const togglePomodoroPanel = useUiStore((s) => s.togglePomodoroPanel);
 
   const [activeCard, setActiveCard] = useState<CardDragData | null>(null);
 
@@ -38,6 +41,9 @@ export default function Shell() {
   );
 
   useEffect(() => {
+    // Al volver a abrir la página, recalcula inmediatamente contra `endsAt`;
+    // no espera al primer segundo del intervalo.
+    tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [tick]);
@@ -64,8 +70,15 @@ export default function Shell() {
       addPomodoroTask(data.boardId, data.cardId);
     } else {
       const board = boards.find((b) => b.id === data.boardId);
-      if (board?.columns.some((c) => c.status === overId)) {
-        moveCard(data.boardId, data.cardId, String(overId));
+      const targetId = String(overId);
+      if (targetId.startsWith('card:')) {
+        const targetCardId = targetId.slice(5);
+        const column = board?.columns.find((c) => c.cards.some((card) => card.id === targetCardId));
+        const position = column?.cards.findIndex((card) => card.id === targetCardId);
+        if (column && position !== undefined && position >= 0) moveCard(data.boardId, data.cardId, column.status, position);
+      } else if (board?.columns.some((c) => c.status === targetId)) {
+        const column = board.columns.find((c) => c.status === targetId);
+        moveCard(data.boardId, data.cardId, targetId, column?.cards.length);
       }
     }
   }
@@ -78,6 +91,11 @@ export default function Shell() {
         {onBoardScreen && <Mascot />}
         {panel === 'focus' && <ActivityPanel />}
         {panel === 'pomodoro' && <PomodoroPanel />}
+        {pomoRunning && panel !== 'pomodoro' && (
+          <button type="button" className="pomo-float mono" onClick={togglePomodoroPanel} aria-label="Abrir pomodoro">
+            ⏱ {Math.floor(pomoLeft / 60).toString().padStart(2, '0')}:{(pomoLeft % 60).toString().padStart(2, '0')}
+          </button>
+        )}
         {immersive && <ImmersiveMode />}
         <ModalsRoot />
         <Fab onClick={() => openModal({ kind: 'activity', boardId: activeBoardId })} />

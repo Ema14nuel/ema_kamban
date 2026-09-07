@@ -12,6 +12,10 @@
   transition: opacity 0.15s ease, box-shadow 0.15s ease;
 }
 
+.activity-card.is-drop-target {
+  box-shadow: 0 -3px 0 var(--accent-solid), 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
 .activity-card.is-dragging {
   opacity: 0.35;
   box-shadow: none;
@@ -25,6 +29,18 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.activity-order {
+  flex: 0 0 auto;
+  min-width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.72rem;
 }
 
 .activity-medal {

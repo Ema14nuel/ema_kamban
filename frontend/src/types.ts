@@ -27,6 +27,7 @@ export interface ActivityCard {
   date: string;
   time: string;
   pomos?: number;
+  order: number;
   doneAt?: string;
   createdAt?: string;
 }
@@ -139,6 +140,7 @@ export interface PomodoroState {
   mode: PomodoroMode;
   left: number;
   running: boolean;
+  endsAt: number | null;
   round: number;
   tasks: PomodoroTask[];
   activeKey: string | null;
@@ -191,12 +193,13 @@ export const SPRITES: SpriteDef[] = [
 
 export type Theme = 'dark' | 'light';
 
-export type ModalKind = 'board' | 'activity' | 'profile' | 'settings' | 'column' | null;
+export type ModalKind = 'board' | 'activity' | 'profile' | 'settings' | 'column' | 'success' | null;
 
 export interface ModalState {
   kind: ModalKind;
   boardId?: string | null;
   status?: string;
+  message?: string;
 }
 
 export type CardEventAction = 'created' | 'edited' | 'moved';

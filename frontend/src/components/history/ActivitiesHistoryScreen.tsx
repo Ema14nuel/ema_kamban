@@ -37,6 +37,7 @@ const EMPTY_MESSAGES: Record<TabKey, string> = {
 
 export default function ActivitiesHistoryScreen() {
   const boards = useBoardStore((s) => s.boards);
+  const rescheduleCard = useBoardStore((s) => s.rescheduleCard);
   const [tab, setTab] = useState<TabKey>('all');
   const [selected, setSelected] = useState<{ boardId: string; cardId: string } | null>(null);
 
@@ -66,6 +67,16 @@ export default function ActivitiesHistoryScreen() {
       : tab === 'missed'
         ? allRows.filter((r) => r.missed)
         : allRows.filter((r) => r.status === tab && !r.missed);
+
+  async function reprogram(row: HistoryRow) {
+    const newDate = prompt('Nueva fecha para esta actividad (AAAA-MM-DD):', new Date().toISOString().slice(0, 10));
+    if (!newDate) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+      alert('Usa el formato AAAA-MM-DD.');
+      return;
+    }
+    await rescheduleCard(row.boardId, row.cardId, newDate);
+  }
 
   return (
     <div className="history-screen">
@@ -103,6 +114,11 @@ export default function ActivitiesHistoryScreen() {
               <span className="mono">{formatIsoDateTimeShort(r.createdAt) || '—'}</span>
               <span className="mono">{r.doneAt ? formatShortDate(r.doneAt) : '—'}</span>
               <span className="history-actions">
+                {r.missed && (
+                  <button type="button" className="btn" onClick={() => reprogram(r)}>
+                    Reprogramar
+                  </button>
+                )}
                 <button type="button" className="btn" onClick={() => setSelected({ boardId: r.boardId, cardId: r.cardId })}>
                   Ver
                 </button>

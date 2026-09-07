@@ -15,8 +15,8 @@ class ColumnSerializer(serializers.ModelSerializer):
 class CardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
-        fields = ['id', 'board', 'status', 'title', 'desc', 'date', 'time', 'pomos', 'done_at', 'created_at']
-        read_only_fields = ['id', 'pomos', 'done_at', 'created_at']
+        fields = ['id', 'board', 'status', 'title', 'desc', 'date', 'time', 'pomos', 'order', 'done_at', 'created_at']
+        read_only_fields = ['id', 'pomos', 'order', 'done_at', 'created_at']
 
     def validate(self, attrs):
         status = attrs.get('status')

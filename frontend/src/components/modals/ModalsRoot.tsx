@@ -4,6 +4,7 @@ import NewActivityModal from './NewActivityModal';
 import NewColumnModal from './NewColumnModal';
 import ProfileModal from './ProfileModal';
 import SettingsModal from './SettingsModal';
+import SuccessModal from './SuccessModal';
 
 export default function ModalsRoot() {
   const kind = useUiStore((s) => s.modal.kind);
@@ -13,5 +14,6 @@ export default function ModalsRoot() {
   if (kind === 'column') return <NewColumnModal />;
   if (kind === 'profile') return <ProfileModal />;
   if (kind === 'settings') return <SettingsModal />;
+  if (kind === 'success') return <SuccessModal />;
   return null;
 }

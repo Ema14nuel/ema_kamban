@@ -4,6 +4,7 @@ import { useRoutineStore, emptyRoutineForm, routineSummary, type RoutineForm } f
 import { DAY_KEYS, DAY_LABELS, type DayKey } from '../../types';
 import Select2 from '../common/Select2';
 import DayScheduleRow from './DayScheduleRow';
+import { useUiStore } from '../../store/uiStore';
 import './routines.css';
 
 export default function RoutinesScreen() {
@@ -11,6 +12,7 @@ export default function RoutinesScreen() {
   const routines = useRoutineStore((s) => s.routines);
   const createRoutine = useRoutineStore((s) => s.createRoutine);
   const removeRoutine = useRoutineStore((s) => s.removeRoutine);
+  const openModal = useUiStore((s) => s.openModal);
 
   const [form, setForm] = useState<RoutineForm>(emptyRoutineForm());
   const [feedback, setFeedback] = useState('');
@@ -36,6 +38,10 @@ export default function RoutinesScreen() {
     if (created > 0) {
       setFeedback(`Se crearon ${created} actividades.`);
       setForm(emptyRoutineForm());
+      openModal({
+        kind: 'success',
+        message: created === 1 ? 'La actividad recurrente se creó correctamente.' : `La rutina se creó correctamente con ${created} actividades.`,
+      });
     } else {
       setFeedback('Revisa el nombre, el tablero y el rango de fechas.');
     }

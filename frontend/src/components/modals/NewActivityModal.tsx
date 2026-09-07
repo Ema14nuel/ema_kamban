@@ -32,8 +32,10 @@ export default function NewActivityModal() {
 
   async function onSave() {
     if (!boardId || !title.trim()) return;
-    await addCard(boardId, { title: title.trim(), desc, date, time, status });
-    closeModal();
+    const created = await addCard(boardId, { title: title.trim(), desc, date, time, status });
+    if (created) {
+      useUiStore.getState().openModal({ kind: 'success', message: 'La actividad fija se creó correctamente.' });
+    }
   }
 
   return (

@@ -13,6 +13,7 @@ interface ApiCard {
   date: string;
   time: string;
   pomos: number;
+  order: number;
   done_at: string;
   created_at: string;
 }
@@ -61,6 +62,7 @@ function mapApiCard(c: ApiCard): ActivityCard {
     date: c.date,
     time: c.time,
     pomos: c.pomos,
+    order: c.order,
     doneAt: c.done_at || undefined,
     createdAt: c.created_at,
   };
@@ -73,7 +75,7 @@ function cardsToColumns(cards: ApiCard[], customColumns: ApiColumn[]) {
     title: s.title,
     color: s.color,
     isCustom: false,
-    cards: cards.filter((c) => c.status === s.key).map(mapApiCard),
+    cards: cards.filter((c) => c.status === s.key).slice().sort((a, b) => a.order - b.order).map(mapApiCard),
   }));
   const custom = customColumns
     .slice()
@@ -85,7 +87,7 @@ function cardsToColumns(cards: ApiCard[], customColumns: ApiColumn[]) {
       color: cc.color,
       isCustom: true,
       customColumnId: String(cc.id),
-      cards: cards.filter((c) => c.status === cc.key).map(mapApiCard),
+      cards: cards.filter((c) => c.status === cc.key).slice().sort((a, b) => a.order - b.order).map(mapApiCard),
     }));
   return [...fixed, ...custom];
 }
@@ -180,10 +182,11 @@ interface BoardStoreState {
   addColumn: (boardId: string, title: string, color: string) => Promise<void>;
   removeColumn: (boardId: string, customColumnId: string) => Promise<void>;
 
-  addCard: (boardId: string, input: NewCardInput) => Promise<void>;
+  addCard: (boardId: string, input: NewCardInput) => Promise<boolean>;
   patchCard: (boardId: string, cardId: string, patch: Partial<Pick<ActivityCard, 'title' | 'desc' | 'date' | 'time'>>) => Promise<void>;
   removeCard: (boardId: string, cardId: string) => Promise<void>;
-  moveCard: (boardId: string, cardId: string, toStatus: string) => Promise<void>;
+  moveCard: (boardId: string, cardId: string, toStatus: string, position?: number) => Promise<void>;
+  rescheduleCard: (boardId: string, cardId: string, date: string) => Promise<void>;
   completePomodoro: (boardId: string, cardId: string, minutes: number) => Promise<LogEntry | null>;
   fetchCardHistory: (cardId: string) => Promise<CardEvent[]>;
   fetchCardNotes: (cardId: string) => Promise<CardNote[]>;
@@ -299,8 +302,10 @@ export const useBoardStore = create<BoardStoreState>()((set, get) => ({
           b.id === boardId ? { ...b, columns: b.columns.map((c) => (c.status === input.status ? { ...c, cards: c.cards.concat(card) } : c)) } : b,
         ),
       }));
+      return true;
     } catch {
       set({ error: 'No se pudo crear la actividad.' });
+      return false;
     }
   },
 
@@ -326,26 +331,22 @@ export const useBoardStore = create<BoardStoreState>()((set, get) => ({
     }
   },
 
-  moveCard: async (boardId, cardId, toStatus) => {
+  moveCard: async (boardId, cardId, toStatus, position) => {
     if (toStatus === 'done') useMascotStore.getState().celebrate();
     try {
-      const data = await api.post<ApiCard>(`/cards/${cardId}/move/`, { status: toStatus });
-      set((s) => ({
-        boards: s.boards.map((b) => {
-          if (b.id !== boardId) return b;
-          let moved: ActivityCard | null = null;
-          const cols = b.columns.map((c) => {
-            const hit = c.cards.find((k) => k.id === cardId);
-            if (!hit) return c;
-            moved = { ...hit, doneAt: data.done_at || undefined };
-            return { ...c, cards: c.cards.filter((k) => k.id !== cardId) };
-          });
-          if (!moved) return b;
-          return { ...b, columns: cols.map((c) => (c.status === toStatus ? { ...c, cards: c.cards.concat([moved as ActivityCard]) } : c)) };
-        }),
-      }));
+      await api.post<ApiCard>(`/cards/${cardId}/move/`, { status: toStatus, ...(position !== undefined ? { position } : {}) });
+      await get().refreshBoard(boardId);
     } catch {
       set({ error: 'No se pudo mover la actividad.' });
+    }
+  },
+
+  rescheduleCard: async (boardId, cardId, date) => {
+    try {
+      await api.patch(`/cards/${cardId}/`, { date });
+      await get().refreshBoard(boardId);
+    } catch {
+      set({ error: 'No se pudo reprogramar la actividad.' });
     }
   },
 

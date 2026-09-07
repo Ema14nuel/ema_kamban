@@ -62,11 +62,13 @@ class Card(models.Model):
     date = models.CharField(max_length=10, blank=True, default='')
     time = models.CharField(max_length=5, blank=True, default='')
     pomos = models.PositiveIntegerField(default=0)
+    # Posición manual dentro de su columna.
+    order = models.PositiveIntegerField(default=0)
     done_at = models.CharField(max_length=10, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['created_at']
+        ordering = ['order', 'created_at']
 
     def __str__(self):
         return self.title

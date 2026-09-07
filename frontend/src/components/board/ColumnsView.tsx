@@ -52,8 +52,8 @@ function DroppableColumn({ boardId, column }: DroppableColumnProps) {
         </button>
       </div>
       <div className="column-cards">
-        {column.cards.map((card) => (
-          <ActivityCardView key={card.id} boardId={boardId} card={card} status={status} accentColor={color} />
+        {column.cards.map((card, index) => (
+          <ActivityCardView key={card.id} boardId={boardId} card={card} status={status} accentColor={color} position={index + 1} />
         ))}
         {column.cards.length === 0 && <div className="column-empty">Sin actividades</div>}
       </div>

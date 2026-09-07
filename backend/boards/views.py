@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 
+from django.db import models, transaction
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
@@ -91,7 +92,8 @@ class CardViewSet(viewsets.ModelViewSet):
         board = serializer.validated_data['board']
         if board.owner_id != self.request.user.id:
             raise PermissionDenied()
-        card = serializer.save()
+        order = Card.objects.filter(board=board, status=serializer.validated_data['status']).count()
+        card = serializer.save(order=order)
         CardEvent.objects.create(card=card, action='created', detail=f'Creada en {status_label(board, card.status)}')
 
     def perform_update(self, serializer):
@@ -117,10 +119,27 @@ class CardViewSet(viewsets.ModelViewSet):
         if to_status not in valid_statuses(card.board):
             return Response({'detail': 'estado invalido'}, status=400)
         from_status = card.status
-        card.status = to_status
-        if to_status == 'done':
-            card.done_at = date.today().isoformat()
-        card.save(update_fields=['status', 'done_at'])
+        try:
+            position = int(request.data.get('position', Card.objects.filter(board=card.board, status=to_status).exclude(pk=card.pk).count()))
+        except (TypeError, ValueError):
+            return Response({'detail': 'posición inválida'}, status=400)
+        with transaction.atomic():
+            # Se saca primero de su lista y se compacta; después se abre un
+            # hueco en destino. Así funciona tanto al mover de columna como
+            # al reordenar en la misma columna.
+            Card.objects.filter(board=card.board, status=from_status, order__gt=card.order).update(order=models.F('order') - 1)
+            destination = Card.objects.filter(board=card.board, status=to_status).exclude(pk=card.pk)
+            if from_status == to_status and position > card.order:
+                position -= 1
+            position = max(0, min(position, destination.count()))
+            destination.filter(order__gte=position).update(order=models.F('order') + 1)
+            card.status = to_status
+            card.order = position
+            if to_status == 'done':
+                card.done_at = date.today().isoformat()
+            elif from_status == 'done':
+                card.done_at = ''
+            card.save(update_fields=['status', 'order', 'done_at'])
         if from_status != to_status:
             CardEvent.objects.create(
                 card=card, action='moved',
@@ -221,9 +240,10 @@ class RoutineViewSet(viewsets.ModelViewSet):
             board=board, title=title, description=description, date_from=date_from, date_to=date_to,
             days=days, count=len(days_to_create),
         )
+        first_order = Card.objects.filter(board=board, status='pending').count()
         cards_to_create = [
-            Card(board=board, routine=routine, status='pending', title=title, desc=desc, date=iso_date, time=time_val)
-            for iso_date, time_val, desc in days_to_create
+            Card(board=board, routine=routine, status='pending', title=title, desc=desc, date=iso_date, time=time_val, order=first_order + index)
+            for index, (iso_date, time_val, desc) in enumerate(days_to_create)
         ]
         created_cards = Card.objects.bulk_create(cards_to_create)
         CardEvent.objects.bulk_create(
