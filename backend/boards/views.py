@@ -16,6 +16,9 @@ from .serializers import (
     ColumnSerializer,
     LogEntrySerializer,
     RoutineSerializer,
+    PomodoroInputSerializer,
+    MoveInputSerializer,
+    TodayInputSerializer,
 )
 
 DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
@@ -48,6 +51,7 @@ class BoardViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Board.objects.filter(owner=self.request.user).prefetch_related('cards', 'columns')
 
+    @transaction.atomic
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
@@ -59,6 +63,7 @@ class ColumnViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Column.objects.filter(board__owner=self.request.user)
 
+    @transaction.atomic
     def perform_create(self, serializer):
         board = serializer.validated_data['board']
         if board.owner_id != self.request.user.id:
@@ -70,6 +75,7 @@ class ColumnViewSet(viewsets.ModelViewSet):
         column.key = f'col-{column.id}'
         column.save(update_fields=['key'])
 
+    @transaction.atomic
     def perform_destroy(self, instance):
         # Las tarjetas que estaban en esta columna vuelven a Pending en vez
         # de perderse.
@@ -88,14 +94,16 @@ class CardViewSet(viewsets.ModelViewSet):
             qs = qs.filter(board_id=board_id)
         return qs
 
+    @transaction.atomic
     def perform_create(self, serializer):
         board = serializer.validated_data['board']
         if board.owner_id != self.request.user.id:
             raise PermissionDenied()
-        order = Card.objects.filter(board=board, status=serializer.validated_data['status']).count()
+        order = Card.objects.filter(board=board, status=serializer.validated_data.get('status', 'pending')).count()
         card = serializer.save(order=order)
         CardEvent.objects.create(card=card, action='created', detail=f'Creada en {status_label(board, card.status)}')
 
+    @transaction.atomic
     def perform_update(self, serializer):
         old = serializer.instance
         old_values = {field: getattr(old, field) for field in EDITABLE_FIELD_LABELS}
@@ -110,19 +118,21 @@ class CardViewSet(viewsets.ModelViewSet):
             else:
                 changes.append(f'{label}: "{old_values[field]}" → "{new_value}"')
         if changes:
-            CardEvent.objects.create(card=card, action='edited', detail='; '.join(changes))
+            CardEvent.objects.create(card=card, action='edited', detail='; '.join(changes)[:300])
 
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def move(self, request, pk=None):
         card = self.get_object()
-        to_status = request.data.get('status')
+        Board.objects.select_for_update().get(pk=card.board_id, owner=request.user)
+        card.refresh_from_db()
+        incoming = MoveInputSerializer(data=request.data)
+        incoming.is_valid(raise_exception=True)
+        to_status = incoming.validated_data['status']
         if to_status not in valid_statuses(card.board):
             return Response({'detail': 'estado invalido'}, status=400)
         from_status = card.status
-        try:
-            position = int(request.data.get('position', Card.objects.filter(board=card.board, status=to_status).exclude(pk=card.pk).count()))
-        except (TypeError, ValueError):
-            return Response({'detail': 'posición inválida'}, status=400)
+        position = incoming.validated_data.get('position', Card.objects.filter(board=card.board, status=to_status).exclude(pk=card.pk).count())
         with transaction.atomic():
             # Se saca primero de su lista y se compacta; después se abre un
             # hueco en destino. Así funciona tanto al mover de columna como
@@ -157,20 +167,22 @@ class CardViewSet(viewsets.ModelViewSet):
     def notes(self, request, pk=None):
         card = self.get_object()
         if request.method == 'POST':
-            text = (request.data.get('text') or '').strip()
-            if not text:
-                return Response({'detail': 'texto requerido'}, status=400)
-            note = CardNote.objects.create(card=card, text=text)
+            incoming = CardNoteSerializer(data=request.data)
+            incoming.is_valid(raise_exception=True)
+            note = incoming.save(card=card)
             return Response(CardNoteSerializer(note).data, status=201)
         notes = CardNote.objects.filter(card=card).order_by('-created_at')
         return Response(CardNoteSerializer(notes, many=True).data)
 
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def complete_pomodoro(self, request, pk=None):
+        incoming = PomodoroInputSerializer(data=request.data)
+        incoming.is_valid(raise_exception=True)
+        minutes = incoming.validated_data['minutes']
         card = self.get_object()
-        minutes = int(request.data.get('minutes', 25))
-        card.pomos = (card.pomos or 0) + 1
-        card.save(update_fields=['pomos'])
+        Card.objects.filter(pk=card.pk).update(pomos=models.F('pomos') + 1)
+        card.refresh_from_db()
         entry = LogEntry.objects.create(
             owner=request.user,
             card=card,
@@ -190,6 +202,7 @@ class RoutineViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Routine.objects.filter(board__owner=self.request.user)
 
+    @transaction.atomic
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -228,6 +241,8 @@ class RoutineViewSet(viewsets.ModelViewSet):
                     range_note = ''
                 desc = '\n\n'.join(part for part in [description, range_note] if part)
                 days_to_create.append((d.isoformat(), time_val, desc))
+            if d == end:
+                break
             d += timedelta(days=1)
 
         if not days_to_create:
@@ -251,6 +266,7 @@ class RoutineViewSet(viewsets.ModelViewSet):
         )
         return Response(RoutineSerializer(routine).data, status=201)
 
+    @transaction.atomic
     def perform_destroy(self, instance):
         # Regla de negocio: borrar una programación recurrente borra sus
         # tarjetas de los tableros, PERO las que ya se completaron o las que
@@ -262,7 +278,9 @@ class RoutineViewSet(viewsets.ModelViewSet):
         # así que cerca de la medianoche el "hoy" del servidor y el del
         # navegador pueden diferir en un día, y este corte tiene que coincidir
         # exactamente con lo que el usuario ve como "perdida" en su pantalla.
-        today = self.request.query_params.get('today') or date.today().isoformat()
+        incoming = TodayInputSerializer(data=self.request.query_params)
+        incoming.is_valid(raise_exception=True)
+        today = incoming.validated_data.get('today', date.today().isoformat())
         cards = Card.objects.filter(routine=instance)
         keep_ids = [c.id for c in cards if c.status == 'done' or (c.date and c.date < today)]
         cards.exclude(id__in=keep_ids).delete()

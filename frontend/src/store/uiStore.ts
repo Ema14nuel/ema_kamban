@@ -1,3 +1,4 @@
+import { onSessionReset } from '../lib/session';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ModalState, Theme } from '../types';
@@ -126,3 +127,5 @@ export const useUiStore = create<UiState>()(
     },
   ),
 );
+
+onSessionReset(() => { useUiStore.setState({ query: '', modal: { kind: null }, panel: null, focus: null, immersive: false, mediaUrl: '', mediaName: 'ninguno', filter: null, activeBoardId: '', userMenuOpen: false }); });

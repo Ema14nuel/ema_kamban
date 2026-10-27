@@ -16,6 +16,7 @@ import ActivitiesHistoryScreen from './components/history/ActivitiesHistoryScree
 
 export default function App() {
   const auth = useAuthStore((s) => s.auth);
+  const userId = useAuthStore((s) => s.user?.id);
   const theme = useUiStore((s) => s.theme);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function App() {
   return (
     <HashRouter>
       <Routes>
-        <Route element={<Shell />}>
+        <Route element={<Shell key={userId} />}>
           <Route path="/" element={<DashboardScreen />} />
           <Route path="/boards" element={<BoardsHome />} />
           <Route path="/boards/:boardId" element={<BoardDetail />} />

@@ -7,3 +7,17 @@ db.sqlite3
 staticfiles/
 media/
 .git/
+**/*.sqlite*
+**/*.db
+**/*.db.*
+**/*.backup*
+**/*.bak
+**/*.dump
+**/*.sql
+**/*.sql.*
+**/*backup*/
+**/.env*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx

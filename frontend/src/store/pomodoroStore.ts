@@ -1,3 +1,5 @@
+import { useAuthStore } from './authStore';
+import { onSessionReset } from '../lib/session';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { PomodoroMode, PomodoroTask } from '../types';
@@ -16,6 +18,7 @@ interface PomodoroStoreState {
   endsAt: number | null;
   round: number;
   tasks: PomodoroTask[];
+  ownerId: number | null;
   activeKey: string | null;
   durations: Record<PomodoroMode, number>;
 
@@ -38,6 +41,7 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
       endsAt: null,
       round: 1,
       tasks: [],
+      ownerId: null,
       activeKey: null,
       durations: { ...POMODORO_DURATIONS },
 
@@ -66,6 +70,11 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
 
       tick: () => {
         const s = get();
+        const userId = useAuthStore.getState().user?.id;
+        if (s.ownerId !== userId) {
+          set({ tasks: [], activeKey: null, running: false, endsAt: null, ownerId: userId ?? null });
+          return;
+        }
         if (!s.running) return;
         const left = s.endsAt ? Math.max(0, Math.ceil((s.endsAt - Date.now()) / 1000)) : s.left - 1;
         if (left > 0) {
@@ -88,7 +97,11 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
       },
 
       addTask: (boardId, cardId) =>
-        set((s) => (s.tasks.some((t) => t.cardId === cardId) ? s : { tasks: s.tasks.concat({ boardId, cardId }), activeKey: s.activeKey ?? cardId })),
+        set((s) => {
+          const ownerId = useAuthStore.getState().user?.id ?? null;
+          const tasks = ownerId === s.ownerId ? s.tasks : [];
+          return { ownerId, tasks: tasks.some((t) => t.cardId === cardId) ? tasks : tasks.concat({ boardId, cardId }), activeKey: ownerId === s.ownerId ? s.activeKey ?? cardId : cardId };
+        }),
 
       removeTask: (cardId) =>
         set((s) => ({
@@ -100,8 +113,10 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
     }),
     {
       name: 'kamban-pomodoro',
-      version: 2,
-      partialize: (s) => ({ mode: s.mode, left: s.left, running: s.running, endsAt: s.endsAt, round: s.round, tasks: s.tasks, activeKey: s.activeKey, durations: s.durations }),
+      version: 3,
+      // Discard legacy tasks that were not associated with an account.
+      migrate: (): Partial<PomodoroStoreState> => ({ tasks: [], activeKey: null, running: false, endsAt: null }),
+      partialize: (s) => ({ mode: s.mode, left: s.left, running: s.running, endsAt: s.endsAt, round: s.round, tasks: s.tasks, ownerId: s.ownerId, activeKey: s.activeKey, durations: s.durations }),
       // Las sesiones guardadas por versiones anteriores no tenían `endsAt`.
       // Al restaurarlas se convierte el tiempo restante en una fecha absoluta,
       // para que cerrar/recargar el navegador no pause el conteo.
@@ -113,3 +128,5 @@ export const usePomodoroStore = create<PomodoroStoreState>()(
     },
   ),
 );
+
+onSessionReset(() => { usePomodoroStore.setState({ tasks: [], ownerId: null, activeKey: null, running: false, endsAt: null, round: 1, left: POMODORO_DURATIONS.focus, mode: 'focus' }); });

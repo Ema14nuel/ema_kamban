@@ -1,3 +1,4 @@
+import { onSessionReset } from '../lib/session';
 import { create } from 'zustand';
 import type { LogEntry } from '../types';
 import { api } from '../lib/api';
@@ -51,3 +52,5 @@ export const useLogStore = create<LogState>()((set) => ({
 
   prependEntry: (entry) => set((s) => ({ log: [entry, ...s.log] })),
 }));
+
+onSessionReset(() => { useLogStore.setState({ log: [], loaded: false, error: null }); });

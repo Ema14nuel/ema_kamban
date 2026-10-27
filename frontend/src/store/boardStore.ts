@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { ActivityCard, Board, CardEvent, CardNote, LogEntry } from '../types';
 import { STATUSES } from '../types';
 import { api } from '../lib/api';
+import { onSessionReset } from '../lib/session';
 import { useMascotStore } from './mascotStore';
 
 interface ApiCard {
@@ -420,3 +421,10 @@ export const useBoardStore = create<BoardStoreState>()((set, get) => ({
   countOf: (board) => board.columns.reduce((n, c) => n + c.cards.length, 0),
   pendingCountOf: (board) => board.columns.find((c) => c.status === 'pending')?.cards.length || 0,
 }));
+
+// Never carry pending edits or downloaded content into another account.
+onSessionReset(() => {
+  for (const queue of cardWriteQueues.values()) if (queue.timer) clearTimeout(queue.timer);
+  cardWriteQueues.clear();
+  useBoardStore.setState({ boards: [], loaded: false, loading: false, error: null });
+});

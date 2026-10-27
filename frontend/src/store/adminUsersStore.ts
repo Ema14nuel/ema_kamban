@@ -1,3 +1,4 @@
+import { onSessionReset } from '../lib/session';
 import { create } from 'zustand';
 import { api, ApiError } from '../lib/api';
 import type { SpriteKey } from '../types';
@@ -107,3 +108,5 @@ export const useAdminUsersStore = create<AdminUsersState>()((set) => ({
     }
   },
 }));
+
+onSessionReset(() => { useAdminUsersStore.setState({ users: [], loaded: false, loading: false, error: null }); });

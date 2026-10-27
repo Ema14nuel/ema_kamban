@@ -1,3 +1,4 @@
+import { onSessionReset } from '../lib/session';
 import { create } from 'zustand';
 import type { DayKey, DaySchedule, Routine } from '../types';
 import { DAY_KEYS, DAY_LABELS } from '../types';
@@ -133,3 +134,5 @@ export const useRoutineStore = create<RoutineState>()((set, get) => ({
     }
   },
 }));
+
+onSessionReset(() => { useRoutineStore.setState({ routines: [], loaded: false, error: null }); });

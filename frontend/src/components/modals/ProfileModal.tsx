@@ -11,6 +11,7 @@ export default function ProfileModal() {
   const name = displayName(user);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const initials = name
     .split(' ')
@@ -24,8 +25,10 @@ export default function ProfileModal() {
     e.target.value = '';
     if (!file) return;
     setUploading(true);
-    await uploadAvatar(file);
-    setUploading(false);
+    setError(null);
+    try { await uploadAvatar(file); }
+    catch { setError('No se pudo guardar la foto. Usa PNG o JPEG de hasta 2 MB y 2048 px por lado.'); }
+    finally { setUploading(false); }
   }
 
   return (
@@ -62,13 +65,15 @@ export default function ProfileModal() {
 
       <div className="field">
         <label>Foto de perfil</label>
-        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onPickFile} />
+        <p>PNG o JPEG · máximo 2 MB, 2048 px por lado y 4 millones de píxeles.</p>
+        {error && <p role="alert">{error}</p>}
+        <input ref={fileRef} type="file" accept="image/png,image/jpeg" style={{ display: 'none' }} onChange={onPickFile} />
         <div className="row-2">
           <button type="button" className="btn" disabled={uploading} onClick={() => fileRef.current?.click()}>
             {uploading ? 'Subiendo…' : user?.avatar ? 'Cambiar foto' : 'Subir foto'}
           </button>
           {user?.avatar && (
-            <button type="button" className="btn btn-danger" onClick={removeAvatar}>
+            <button type="button" className="btn btn-danger" onClick={() => { setError(null); void removeAvatar().catch(() => setError('No se pudo quitar la foto.')); }}>
               Quitar foto
             </button>
           )}

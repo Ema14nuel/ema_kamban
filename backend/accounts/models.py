@@ -14,6 +14,7 @@ class User(AbstractUser):
     sprite = models.CharField(max_length=10, choices=SPRITE_CHOICES, default='chico')
     notify_on_pomodoro = models.BooleanField(default=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    auth_version = models.PositiveIntegerField(default=0, editable=False)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
