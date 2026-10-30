@@ -34,12 +34,13 @@ if (len(SECRET_KEY) < 50 or len(set(SECRET_KEY)) < 5
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
-SECURE_SSL_REDIRECT = not DEBUG
+HTTPS_ENABLED = os.getenv('DJANGO_HTTPS_ENABLED', 'True') == 'True'
+SESSION_COOKIE_SECURE = not DEBUG and HTTPS_ENABLED
+CSRF_COOKIE_SECURE = not DEBUG and HTTPS_ENABLED
+SECURE_SSL_REDIRECT = not DEBUG and HTTPS_ENABLED
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'same-origin'
-SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG and HTTPS_ENABLED else 0
 # Enable only behind the loopback-bound, trusted TLS reverse proxy.
 if os.getenv('DJANGO_TRUST_PROXY', 'False') == 'True':
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

@@ -1,0 +1,13 @@
+# Explicit HTTP-by-IP deployment, as requested for this EC2 installation.
+# docker compose -p tableros -f docker-compose.prod.yml -f docker-compose.http.yml up -d
+services:
+  backend:
+    environment:
+      DJANGO_HTTPS_ENABLED: "False"
+      DJANGO_TRUST_PROXY: "False"
+  web:
+    ports: !override
+      - "8010:80"
+    volumes: !override
+      - ./nginx/http.conf:/etc/nginx/conf.d/default.conf:ro
+      - media_volume:/vol/media:ro
