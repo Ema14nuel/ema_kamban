@@ -38,9 +38,13 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
     throw new ApiError(res.status, body);
   }
 
-  if (res.status === 204) return undefined as T;
+  const notifyWrite = () => {
+    if (options.method && options.method !== 'GET' && typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event('kamban:metrics-changed'));
+  };
+  if (res.status === 204) { notifyWrite(); return undefined as T; }
   const body = await res.json();
   assertCurrentSession(epoch);
+  notifyWrite();
   return body as T;
 }
 

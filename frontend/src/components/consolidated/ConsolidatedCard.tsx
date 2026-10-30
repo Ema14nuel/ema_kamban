@@ -1,6 +1,7 @@
 import type { ActivityCard, Board } from '../../types';
 import { medalOf } from '../../lib/medal';
 import { formatShortDate } from '../../lib/date';
+import { overdueDays } from '../../lib/schedule';
 import { tint } from '../../lib/color';
 import { useUiStore } from '../../store/uiStore';
 import '../board/activityCard.css';
@@ -15,10 +16,11 @@ interface ConsolidatedCardProps {
 export default function ConsolidatedCard({ board, card, status, compact }: ConsolidatedCardProps) {
   const openFocus = useUiStore((s) => s.openFocus);
   const medal = medalOf(card, status);
+  const daysOverdue = overdueDays(card, status);
 
   return (
     <div
-      className={`activity-card card-fade ${compact ? 'is-compact' : ''}`}
+      className={`activity-card card-fade ${daysOverdue > 0 ? 'is-overdue' : ''} ${compact ? 'is-compact' : ''}`}
       style={{ borderLeftColor: board.color }}
       onClick={() => openFocus(board.id, card.id)}
       title={compact ? card.title : undefined}
@@ -31,6 +33,7 @@ export default function ConsolidatedCard({ board, card, status, compact }: Conso
         <div className="activity-title">{card.title}</div>
       </div>
       {!compact && card.desc && <div className="activity-desc">{card.desc}</div>}
+      {daysOverdue > 0 && <span className="activity-overdue">{daysOverdue} {daysOverdue === 1 ? 'día vencido' : 'días vencidos'}</span>}
       {!compact && (
         <span className="activity-meta mono">
           {formatShortDate(card.date)}

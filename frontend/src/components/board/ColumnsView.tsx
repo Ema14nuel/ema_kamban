@@ -64,9 +64,8 @@ function DroppableColumn({ boardId, column }: DroppableColumnProps) {
 export default function ColumnsView({ board }: ColumnsViewProps) {
   const openModal = useUiStore((s) => s.openModal);
 
-  // Actividades con fecha pasada y sin completar quedan "perdidas": se
-  // sacan del tablero (se ven en Histórico → Actividades perdidas). Las
-  // sin fecha y las completadas siempre se muestran.
+  // Solo las recurrentes vencidas se pierden. Las manuales pendientes
+  // permanecen visibles aunque haya pasado su fecha.
   const visibleColumns = board.columns.map((c) => ({
     ...c,
     cards: c.cards.filter((card) => isCardVisibleToday(card, c.status)),

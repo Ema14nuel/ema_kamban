@@ -2,6 +2,7 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { ActivityCard } from '../../types';
 import { medalOf } from '../../lib/medal';
 import { formatShortDate } from '../../lib/date';
+import { overdueDays } from '../../lib/schedule';
 import { useBoardStore } from '../../store/boardStore';
 import { useUiStore } from '../../store/uiStore';
 import './activityCard.css';
@@ -19,6 +20,7 @@ export default function ActivityCardView({ boardId, card, status, accentColor, p
   const removeCard = useBoardStore((s) => s.removeCard);
   const openFocus = useUiStore((s) => s.openFocus);
   const medal = medalOf(card, status);
+  const daysOverdue = overdueDays(card, status);
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: card.id,
@@ -29,7 +31,7 @@ export default function ActivityCardView({ boardId, card, status, accentColor, p
   return (
     <div
       ref={(node) => { setNodeRef(node); setDropRef(node); }}
-      className={`activity-card card-fade ${isDragging ? 'is-dragging' : ''} ${isOver ? 'is-drop-target' : ''}`}
+      className={`activity-card card-fade ${daysOverdue > 0 ? 'is-overdue' : ''} ${isDragging ? 'is-dragging' : ''} ${isOver ? 'is-drop-target' : ''}`}
       style={{ borderLeftColor: accentColor }}
       onClick={() => !isDragging && openFocus(boardId, card.id)}
       {...listeners}
@@ -56,6 +58,7 @@ export default function ActivityCardView({ boardId, card, status, accentColor, p
         </button>
       </div>
       {card.desc && <div className="activity-desc">{card.desc}</div>}
+      {daysOverdue > 0 && <span className="activity-overdue">{daysOverdue} {daysOverdue === 1 ? 'día vencido' : 'días vencidos'}</span>}
       <span className="activity-meta mono">
         {formatShortDate(card.date)}
         {card.time ? ` · ${card.time}` : ''}

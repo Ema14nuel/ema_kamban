@@ -34,9 +34,9 @@ export default function UserMenu({ initials }: UserMenuProps) {
 
   return (
     <div className="navbar-user" ref={ref}>
-      <div className="navbar-avatar" title="Cuenta" onClick={toggle}>
+      <button type="button" className="navbar-avatar" title="Cuenta" aria-label="Menú de cuenta" aria-expanded={open} onClick={toggle}>
         {user?.avatar ? <img src={user.avatar} alt={displayName(user)} /> : initials}
-      </div>
+      </button>
       {open && (
         <div className="navbar-user-menu pop-in">
           <div className="navbar-user-head">
@@ -45,7 +45,8 @@ export default function UserMenu({ initials }: UserMenuProps) {
           </div>
           <div className="navbar-user-items">
             {items.map((it) => (
-              <div
+              <button
+                type="button"
                 key={it.label}
                 className="navbar-user-item"
                 onClick={() => {
@@ -53,9 +54,9 @@ export default function UserMenu({ initials }: UserMenuProps) {
                   close();
                 }}
               >
-                <span className="navbar-user-item-icon">{it.icon}</span>
+                <span className="navbar-user-item-icon" aria-hidden="true">{it.icon}</span>
                 {it.label}
-              </div>
+              </button>
             ))}
           </div>
         </div>

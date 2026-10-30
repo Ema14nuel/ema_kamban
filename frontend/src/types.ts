@@ -22,6 +22,8 @@ export const STATUS_HEX: Record<StatusKey, string> = {
 
 export interface ActivityCard {
   id: string;
+  routineId?: string;
+  isRecurring?: boolean;
   title: string;
   desc: string;
   date: string;
@@ -202,7 +204,7 @@ export interface ModalState {
   message?: string;
 }
 
-export type CardEventAction = 'created' | 'edited' | 'moved';
+export type CardEventAction = 'created' | 'edited' | 'moved' | 'completed' | 'reopened' | 'rescheduled' | 'archived' | 'cancelled';
 
 export interface CardEvent {
   id: string;

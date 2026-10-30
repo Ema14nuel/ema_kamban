@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from . import views
+from .metrics import metrics
 
 router = DefaultRouter()
 router.register('boards', views.BoardViewSet, basename='board')
@@ -11,5 +12,6 @@ router.register('routines', views.RoutineViewSet, basename='routine')
 router.register('log', views.LogEntryViewSet, basename='logentry')
 
 urlpatterns = [
+    path('metrics/', metrics, name='metrics'),
     path('health/', views.health_check, name='health-check'),
 ] + router.urls

@@ -7,6 +7,8 @@ import { useMascotStore } from './mascotStore';
 
 interface ApiCard {
   id: number;
+  routine?: number | null;
+  is_recurring?: boolean;
   board: number;
   status: string;
   title: string;
@@ -58,6 +60,8 @@ interface ApiBoard {
 function mapApiCard(c: ApiCard): ActivityCard {
   return {
     id: String(c.id),
+    routineId: c.routine == null ? undefined : String(c.routine),
+    isRecurring: c.is_recurring ?? c.routine != null,
     title: c.title,
     desc: c.desc,
     date: c.date,

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from .clock import business_today
 
 
 class Board(models.Model):
@@ -52,7 +53,7 @@ class Card(models.Model):
     # Solo para tarjetas generadas por una programación recurrente — permite
     # borrarlas en cascada de forma selectiva (ver RoutineViewSet.perform_destroy).
     # SET_NULL porque una tarjeta completada o perdida sobrevive al borrado de
-    # la rutina que la generó (queda "suelta", como si se hubiera creado a mano).
+    # la rutina que la generó; origin conserva su naturaleza recurrente.
     routine = models.ForeignKey('Routine', related_name='cards', null=True, blank=True, on_delete=models.SET_NULL)
     # Sin choices: puede ser una de las 4 claves fijas o la key de una Column
     # personalizada del mismo tablero — se valida en el serializer/vista.
@@ -66,9 +67,32 @@ class Card(models.Model):
     order = models.PositiveIntegerField(default=0)
     done_at = models.CharField(max_length=10, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
+    origin = models.CharField(max_length=12, choices=[('manual', 'Manual'), ('recurring', 'Recurrente')], default='manual')
+    original_due_date = models.DateField(null=True, blank=True)
+    due_date_precision = models.CharField(max_length=12, default='exact', choices=[('exact', 'Exacta'), ('baseline', 'Línea base')])
+    first_completed_at = models.DateTimeField(null=True, blank=True)
+    completion_precision = models.CharField(max_length=12, default='unknown', choices=[('exact', 'Exacta'), ('day', 'Solo fecha'), ('unknown', 'Desconocida')])
+    archived_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.CharField(max_length=200, blank=True, default='')
 
     class Meta:
         ordering = ['order', 'created_at']
+        indexes = [models.Index(fields=['board', 'original_due_date'], name='card_board_due_idx'), models.Index(fields=['board', 'first_completed_at'], name='card_board_completed_idx')]
+
+    @property
+    def is_recurring(self):
+        if self.origin == 'recurring':
+            return True
+        if self.routine_id:
+            return True
+        if hasattr(self, '_recurring_origin'):
+            return self._recurring_origin
+        return self.events.filter(action='created', detail='Creada por programación recurrente en Pending').exists()
+
+    @property
+    def is_expired_recurring(self):
+        return bool(self.status != 'done' and self.date and self.date < business_today().isoformat() and self.is_recurring)
 
     def __str__(self):
         return self.title
@@ -79,12 +103,18 @@ class CardEvent(models.Model):
         ('created', 'Created'),
         ('edited', 'Edited'),
         ('moved', 'Moved'),
+        ('completed', 'Completed'),
+        ('reopened', 'Reopened'),
+        ('rescheduled', 'Rescheduled'),
+        ('archived', 'Archived'),
+        ('cancelled', 'Cancelled'),
     ]
 
     card = models.ForeignKey(Card, related_name='events', on_delete=models.CASCADE)
-    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    action = models.CharField(max_length=16, choices=ACTION_CHOICES)
     detail = models.CharField(max_length=300, blank=True, default='')
     at = models.DateTimeField(auto_now_add=True)
+    metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ['-at']

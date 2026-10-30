@@ -56,6 +56,40 @@ class BoardSecurityTests(APITestCase):
         self.assertTrue(moved.data['done_at'])
         self.assertEqual(self.client.delete(f'/api/cards/{card_id}/').status_code, 204)
 
+    def test_expired_recurring_cannot_be_recovered(self):
+        from datetime import date, timedelta
+        self.card.routine = self.routine
+        self.card.date = (date.today() - timedelta(days=1)).isoformat()
+        self.card.save()
+        for body in ({'status': 'done'}, {'date': date.today().isoformat()}, {'status': 'progress'}):
+            self.assertEqual(self.client.patch(f'/api/cards/{self.card.pk}/', body, format='json').status_code, 400)
+        self.assertEqual(self.client.post(f'/api/cards/{self.card.pk}/move/', {'status': 'done'}, format='json').status_code, 400)
+        self.assertEqual(self.client.post(f'/api/cards/{self.card.pk}/complete_pomodoro/', {'minutes': 25}, format='json').status_code, 400)
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.status, 'pending')
+        self.assertEqual(self.card.pomos, 0)
+        self.assertFalse(LogEntry.objects.exists())
+        self.assertTrue(self.client.get('/api/boards/').data[0]['cards'][0]['is_recurring'])
+
+    def test_deleted_routine_does_not_make_expired_card_recoverable(self):
+        from datetime import date, timedelta
+        self.card.routine = self.routine
+        self.card.date = (date.today() - timedelta(days=1)).isoformat()
+        self.card.save()
+        CardEvent.objects.create(card=self.card, action='created', detail='Creada por programación recurrente en Pending')
+        self.routine.delete()
+        self.assertEqual(self.client.post(f'/api/cards/{self.card.pk}/move/', {'status': 'done'}, format='json').status_code, 400)
+        self.assertTrue(self.client.get('/api/boards/').data[0]['cards'][0]['is_recurring'])
+
+    def test_today_recurring_and_overdue_manual_can_be_completed(self):
+        from datetime import date, timedelta
+        self.card.routine = self.routine
+        self.card.date = date.today().isoformat()
+        self.card.save()
+        self.assertEqual(self.client.post(f'/api/cards/{self.card.pk}/move/', {'status': 'done'}, format='json').status_code, 200)
+        manual = Card.objects.create(board=self.board, title='Manual overdue', date=(date.today() - timedelta(days=1)).isoformat())
+        self.assertEqual(self.client.post(f'/api/cards/{manual.pk}/move/', {'status': 'done'}, format='json').status_code, 200)
+
     def test_invalid_actions_have_no_side_effects(self):
         for value in ('bad', -1, 0, 181, None, {}, []):
             with self.subTest(minutes=value):

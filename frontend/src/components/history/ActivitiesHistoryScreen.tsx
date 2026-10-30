@@ -16,6 +16,7 @@ interface HistoryRow {
   createdAt?: string;
   doneAt?: string;
   missed: boolean;
+  recurring: boolean;
 }
 
 type TabKey = 'all' | 'missed' | (typeof STATUSES)[number]['key'];
@@ -55,6 +56,7 @@ export default function ActivitiesHistoryScreen() {
             createdAt: card.createdAt,
             doneAt: card.doneAt,
             missed: isCardMissed(card, c.status),
+            recurring: Boolean(card.isRecurring || card.routineId),
           }),
         ),
       ),
@@ -114,7 +116,7 @@ export default function ActivitiesHistoryScreen() {
               <span className="mono">{formatIsoDateTimeShort(r.createdAt) || '—'}</span>
               <span className="mono">{r.doneAt ? formatShortDate(r.doneAt) : '—'}</span>
               <span className="history-actions">
-                {r.missed && (
+                {r.missed && !r.recurring && (
                   <button type="button" className="btn" onClick={() => reprogram(r)}>
                     Reprogramar
                   </button>

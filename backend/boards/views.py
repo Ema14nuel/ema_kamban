@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 
 from django.db import models, transaction
+from django.utils import timezone
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
@@ -8,6 +9,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .models import Board, Card, CardEvent, CardNote, Column, LogEntry, Routine
+from .clock import business_today
+from .transitions import apply_transition, capture_commitment
 from .serializers import (
     BoardSerializer,
     CardEventSerializer,
@@ -31,6 +34,13 @@ def valid_statuses(board):
     return FIXED_STATUSES | set(board.columns.values_list('key', flat=True))
 
 
+def cards_with_recurrence():
+    # The creation event preserves origin after deleting a routine (SET_NULL).
+    return Card.objects.annotate(_recurring_origin=models.Exists(
+        CardEvent.objects.filter(card_id=models.OuterRef('pk'), action='created', detail='Creada por programación recurrente en Pending')
+    ))
+
+
 def status_label(board, status):
     if status in STATUS_LABELS:
         return STATUS_LABELS[status]
@@ -49,7 +59,7 @@ class BoardViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Board.objects.filter(owner=self.request.user).prefetch_related('cards', 'columns')
+        return Board.objects.filter(owner=self.request.user).prefetch_related(models.Prefetch('cards', queryset=cards_with_recurrence().filter(archived_at__isnull=True, cancelled_at__isnull=True)), 'columns')
 
     @transaction.atomic
     def perform_create(self, serializer):
@@ -88,7 +98,7 @@ class CardViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        qs = Card.objects.filter(board__owner=self.request.user)
+        qs = cards_with_recurrence().filter(board__owner=self.request.user, archived_at__isnull=True, cancelled_at__isnull=True)
         board_id = self.request.query_params.get('board')
         if board_id:
             qs = qs.filter(board_id=board_id)
@@ -99,15 +109,32 @@ class CardViewSet(viewsets.ModelViewSet):
         board = serializer.validated_data['board']
         if board.owner_id != self.request.user.id:
             raise PermissionDenied()
+        Board.objects.select_for_update().get(pk=board.pk)
         order = Card.objects.filter(board=board, status=serializer.validated_data.get('status', 'pending')).count()
         card = serializer.save(order=order)
+        capture_commitment(card)
+        if card.status == 'done':
+            card.status = 'pending'
+            apply_transition(card, 'done')
+        card.save()
         CardEvent.objects.create(card=card, action='created', detail=f'Creada en {status_label(board, card.status)}')
 
     @transaction.atomic
     def perform_update(self, serializer):
+        Board.objects.select_for_update().get(pk=serializer.instance.board_id)
+        serializer.instance.refresh_from_db()
         old = serializer.instance
         old_values = {field: getattr(old, field) for field in EDITABLE_FIELD_LABELS}
+        previous_status = old.status
+        target_status = serializer.validated_data.pop('status', previous_status)
+        # Recheck after locking: the original serializer validation may be stale.
+        if old.is_expired_recurring and (target_status != previous_status or any(field in serializer.validated_data and serializer.validated_data[field] != getattr(old, field) for field in ('date', 'time'))):
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError('Esta actividad recurrente venció y no se puede recuperar ni reprogramar.')
+        apply_transition(old, target_status)
         card = serializer.save()
+        capture_commitment(card)
+        card.save()
         changes = []
         for field, label in EDITABLE_FIELD_LABELS.items():
             new_value = getattr(card, field)
@@ -118,7 +145,17 @@ class CardViewSet(viewsets.ModelViewSet):
             else:
                 changes.append(f'{label}: "{old_values[field]}" → "{new_value}"')
         if changes:
-            CardEvent.objects.create(card=card, action='edited', detail='; '.join(changes)[:300])
+            CardEvent.objects.create(card=card, action='rescheduled' if old_values['date'] != card.date else 'edited', detail='; '.join(changes)[:300], metadata={field: {'old': old_values[field], 'new': getattr(card, field)} for field in EDITABLE_FIELD_LABELS if old_values[field] != getattr(card, field)})
+        if previous_status != target_status:
+            CardEvent.objects.create(card=card, action='completed' if target_status == 'done' else 'reopened' if previous_status == 'done' else 'moved', detail=f'{previous_status} → {target_status}', metadata={'from_status': previous_status, 'to_status': target_status})
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        Board.objects.select_for_update().get(pk=instance.board_id)
+        instance.refresh_from_db()
+        instance.archived_at = timezone.now()
+        instance.save(update_fields=['archived_at'])
+        CardEvent.objects.create(card=instance, action='archived', detail='Actividad archivada; se conserva para indicadores')
 
     @action(detail=True, methods=['post'])
     @transaction.atomic
@@ -126,6 +163,8 @@ class CardViewSet(viewsets.ModelViewSet):
         card = self.get_object()
         Board.objects.select_for_update().get(pk=card.board_id, owner=request.user)
         card.refresh_from_db()
+        if card.is_expired_recurring:
+            return Response({'detail': 'Esta actividad recurrente venció y no se puede recuperar.'}, status=400)
         incoming = MoveInputSerializer(data=request.data)
         incoming.is_valid(raise_exception=True)
         to_status = incoming.validated_data['status']
@@ -143,17 +182,14 @@ class CardViewSet(viewsets.ModelViewSet):
                 position -= 1
             position = max(0, min(position, destination.count()))
             destination.filter(order__gte=position).update(order=models.F('order') + 1)
-            card.status = to_status
+            apply_transition(card, to_status)
             card.order = position
-            if to_status == 'done':
-                card.done_at = date.today().isoformat()
-            elif from_status == 'done':
-                card.done_at = ''
-            card.save(update_fields=['status', 'order', 'done_at'])
+            card.save(update_fields=['status', 'order', 'done_at', 'first_completed_at', 'completion_precision'])
         if from_status != to_status:
             CardEvent.objects.create(
                 card=card, action='moved',
                 detail=f'{status_label(card.board, from_status)} → {status_label(card.board, to_status)}',
+                metadata={'from_status': from_status, 'to_status': to_status},
             )
         return Response(CardSerializer(card).data)
 
@@ -181,6 +217,8 @@ class CardViewSet(viewsets.ModelViewSet):
         incoming.is_valid(raise_exception=True)
         minutes = incoming.validated_data['minutes']
         card = self.get_object()
+        if card.is_expired_recurring:
+            return Response({'detail': 'Esta actividad recurrente venció y no se puede recuperar.'}, status=400)
         Card.objects.filter(pk=card.pk).update(pomos=models.F('pomos') + 1)
         card.refresh_from_db()
         entry = LogEntry.objects.create(
@@ -257,7 +295,7 @@ class RoutineViewSet(viewsets.ModelViewSet):
         )
         first_order = Card.objects.filter(board=board, status='pending').count()
         cards_to_create = [
-            Card(board=board, routine=routine, status='pending', title=title, desc=desc, date=iso_date, time=time_val, order=first_order + index)
+            Card(board=board, routine=routine, origin='recurring', original_due_date=date.fromisoformat(iso_date), status='pending', title=title, desc=desc, date=iso_date, time=time_val, order=first_order + index)
             for index, (iso_date, time_val, desc) in enumerate(days_to_create)
         ]
         created_cards = Card.objects.bulk_create(cards_to_create)
@@ -268,22 +306,18 @@ class RoutineViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def perform_destroy(self, instance):
-        # Regla de negocio: borrar una programación recurrente borra sus
-        # tarjetas de los tableros, PERO las que ya se completaron o las que
-        # se perdieron (fecha pasada sin completar) quedan — solo se ven en
-        # Histórico a partir de ahí, ya no en ningún tablero activo.
-        #
-        # "Hoy" lo manda el cliente (?today=YYYY-MM-DD, en su hora local) en
-        # vez de usar date.today() del servidor: el contenedor corre en UTC,
-        # así que cerca de la medianoche el "hoy" del servidor y el del
-        # navegador pueden diferir en un día, y este corte tiene que coincidir
-        # exactamente con lo que el usuario ve como "perdida" en su pantalla.
+        # Validate legacy callers' query, but calculate the cut in Bogotá on
+        # the server. Deleting a routine cannot erase expired commitments.
         incoming = TodayInputSerializer(data=self.request.query_params)
         incoming.is_valid(raise_exception=True)
-        today = incoming.validated_data.get('today', date.today().isoformat())
+        today = business_today().isoformat()
         cards = Card.objects.filter(routine=instance)
-        keep_ids = [c.id for c in cards if c.status == 'done' or (c.date and c.date < today)]
-        cards.exclude(id__in=keep_ids).delete()
+        # Cancel only future untouched occurrences. Past commitments remain measurable.
+        future = cards.filter(date__gt=today, status='pending', pomos=0, first_completed_at__isnull=True)
+        future = future.exclude(events__action__in=['moved', 'completed', 'reopened'])
+        ids = list(future.values_list('pk', flat=True))
+        Card.objects.filter(pk__in=ids).update(cancelled_at=timezone.now(), cancellation_reason='Programación eliminada antes del inicio')
+        CardEvent.objects.bulk_create([CardEvent(card_id=pk, action='cancelled', detail='Ocurrencia futura cancelada al eliminar la programación') for pk in ids])
         # SET_NULL en Card.routine desvincula automáticamente las que se
         # conservan al borrar esta Routine.
         instance.delete()

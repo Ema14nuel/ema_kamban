@@ -54,6 +54,7 @@ class ColumnSerializer(OwnedBoardSerializer):
 
 
 class CardSerializer(OwnedBoardSerializer):
+    is_recurring = serializers.BooleanField(read_only=True)
     status = serializers.CharField(max_length=20, default='pending')
     desc = serializers.CharField(max_length=20000, required=False, allow_blank=True)
 
@@ -65,10 +66,13 @@ class CardSerializer(OwnedBoardSerializer):
 
     class Meta:
         model = Card
-        fields = ['id', 'board', 'status', 'title', 'desc', 'date', 'time', 'pomos', 'order', 'done_at', 'created_at']
-        read_only_fields = ['id', 'pomos', 'order', 'done_at', 'created_at']
+        fields = ['id', 'board', 'routine', 'is_recurring', 'status', 'title', 'desc', 'date', 'time', 'pomos', 'order', 'done_at', 'created_at', 'origin', 'original_due_date', 'due_date_precision', 'first_completed_at', 'completion_precision']
+        read_only_fields = ['id', 'routine', 'pomos', 'order', 'done_at', 'created_at', 'origin', 'original_due_date', 'due_date_precision', 'first_completed_at', 'completion_precision']
 
     def validate(self, attrs):
+        if self.instance and self.instance.is_expired_recurring:
+            if any(field in attrs and attrs[field] != getattr(self.instance, field) for field in ('status', 'date', 'time')):
+                raise serializers.ValidationError('Esta actividad recurrente venció y no se puede recuperar ni reprogramar.')
         status = attrs.get('status')
         board = attrs.get('board') or getattr(self.instance, 'board', None)
         if status and board:
@@ -145,8 +149,8 @@ class LogEntrySerializer(serializers.ModelSerializer):
 class CardEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = CardEvent
-        fields = ['id', 'card', 'action', 'detail', 'at']
-        read_only_fields = ['id', 'card', 'action', 'detail', 'at']
+        fields = ['id', 'card', 'action', 'detail', 'metadata', 'at']
+        read_only_fields = fields
 
 
 class PomodoroInputSerializer(serializers.Serializer):

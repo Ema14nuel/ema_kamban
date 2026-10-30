@@ -25,6 +25,11 @@ const EVENT_LABELS: Record<CardEvent['action'], string> = {
   created: 'Creada',
   edited: 'Editada',
   moved: 'Movida de columna',
+  completed: 'Completada',
+  reopened: 'Reabierta',
+  rescheduled: 'Reprogramada',
+  archived: 'Archivada',
+  cancelled: 'Cancelada',
 };
 
 export default function ActivityDetailModal({ boardId, cardId, onClose }: ActivityDetailModalProps) {

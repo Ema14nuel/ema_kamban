@@ -1,0 +1,165 @@
+/* Layout rules shared across desktop, tablet and phone. Scrolling stays inside
+   dense widgets (calendar/chart); forms and primary actions reflow. */
+.app-shell, .shell-content { min-width: 0; }
+.shell-content { width: calc(100% - var(--sidebar-width)); }
+.app-shell :is(.column, .field, .routines-form, .routines-list, .routine-card, .panel-detail, .history-table, .users-table, .board-card, .select2, .activity-card-top) { min-width: 0; }
+.app-shell :is(h1, h2, h3, .activity-title, .column-title, .routine-card-title, .panel-chip, .history-board, .board-subheader-name, .activity-trace-detail) { overflow-wrap: anywhere; }
+.app-shell :is(input, textarea, select) { max-width: 100%; min-width: 0; }
+.app-shell :is(button, a):focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 3px; }
+.navbar-sidebar-toggle { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 10px; background: var(--input); font-size: 21px; }
+.app-shell .navbar { gap: 12px; }
+.app-shell .navbar-menu { flex-wrap: nowrap; }
+.app-shell .navbar-tabs { flex-shrink: 0; }
+.app-shell .navbar-tab { white-space: nowrap; text-decoration: none; border: 0; background: transparent; }
+.app-shell .navbar-tab.active { background: var(--accent); }
+.app-shell .navbar-brand { background: transparent; padding: 0; border: 0; }
+.app-shell .columns-view { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.app-shell .boards-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
+.app-shell .routines-screen { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.app-shell .calendar-view { max-width: 100%; overflow-x: auto; padding-bottom: 10px; }
+.app-shell .calendar-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); min-width: 560px; }
+.app-shell .calendar-cell { min-width: 0; }
+.app-shell .row-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.app-shell .panel-head, .app-shell .panel-actions, .app-shell .panel-kanban, .app-shell .activity-detail-chips { flex-wrap: wrap; }
+.app-shell .panel-close { flex-shrink: 0; }
+.app-shell .activity-panel, .app-shell .pomodoro-panel { width: min(420px, 100%); max-width: 100%; height: 100dvh; padding-bottom: max(24px, env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+.app-shell .modal-overlay { padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.app-shell .modal-sheet { max-width: 100%; max-height: calc(100dvh - 32px); }
+.app-shell .modal-head, .app-shell .modal-foot { flex-shrink: 0; gap: 12px; }
+.app-shell .modal-body { min-height: 0; min-width: 0; overscroll-behavior: contain; }
+.app-shell .modal-foot { flex-wrap: wrap; }
+.app-shell .modal-close { flex-shrink: 0; }
+.app-shell .select2-value { min-width: 0; overflow-wrap: anywhere; }
+.app-shell .select2-list { max-height: min(220px, 35dvh); }
+.app-shell .immersive-layer { padding: 60px 16px 20px; overflow-y: auto; }
+.app-shell .immersive-card { max-width: 100%; padding: clamp(18px, 4vw, 40px); }
+.app-shell .immersive-timer { font-size: clamp(48px, 14vw, 104px); }
+.login-screen { overflow-y: auto; min-height: 100dvh; }
+@media (max-width: 1280px) {
+  .app-shell .navbar-hamburger { display: flex; }
+  .app-shell .navbar-menu { display: none; }
+  .app-shell .navbar-menu.open { display: flex; flex-direction: column; align-items: stretch; gap: 12px; position: absolute; top: 100%; left: 0; right: 0; max-height: calc(100dvh - var(--nav-h)); overflow-y: auto; padding: 14px 16px 20px; background: var(--sheet); border-bottom: 1px solid var(--border); box-shadow: var(--shadow-menu); }
+  .app-shell .navbar-menu.open .navbar-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .app-shell .navbar-menu.open .navbar-tab { min-height: 44px; display: grid; place-items: center; padding: 8px; }
+  .app-shell .navbar-menu.open .navbar-actions { display: flex; flex-wrap: wrap; flex-direction: row; margin-left: 0; align-items: stretch; }
+  .app-shell .navbar-menu.open .navbar-search { width: 100%; min-height: 44px; }
+  .app-shell .navbar-menu.open :is(.navbar-theme-btn, .navbar-pomo-btn) { flex: 1 1 120px; justify-content: center; min-height: 44px; }
+}
+@media (max-width: 1100px) {
+  .app-shell .shell-content { margin-left: 60px; width: calc(100% - 60px); }
+  .app-shell .boards-sidebar { z-index: 38; }
+  .app-shell .boards-sidebar:not(.is-collapsed) { width: min(280px, calc(100vw - 24px)); box-shadow: var(--shadow-menu); }
+  .app-shell .sidebar-backdrop { display: block; position: fixed; inset: var(--nav-h) 0 0; z-index: 37; border: 0; background: rgba(0,0,0,.48); }
+  .app-shell:not(.sidebar-collapsed) :is(.fab, .pomo-float) { display: none; }
+  .app-shell .routines-screen { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .consolidated-screen { flex-direction: column; }
+  .app-shell .consolidated-sidebar { position: static; flex: none; width: 100%; }
+  .app-shell .consolidated-main { width: 100%; }
+}
+@media (max-width: 760px) {
+  .app-shell .shell-content { margin-left: 0; width: 100%; }
+  .app-shell .boards-sidebar.is-collapsed { display: none; }
+  .app-shell .navbar { padding: 10px 12px; gap: 8px; }
+  .app-shell .navbar-sidebar-toggle, .app-shell .navbar-hamburger { width: 44px; height: 44px; flex-basis: 44px; }
+  .app-shell .navbar-brand { min-width: 0; gap: 7px; }
+  .app-shell .navbar-logo { flex-shrink: 0; }
+  .app-shell .navbar-title { font-size: 14px; }
+  .app-shell .navbar-avatar { width: 40px; height: 40px; }
+  .app-shell :is(.boards-home, .routines-screen, .history-screen, .log-screen, .users-screen, .consolidated-screen) { padding: 22px 14px 100px; }
+  .app-shell .board-content { padding: 14px 14px 100px; }
+  .app-shell .board-subheader { padding: 12px 14px; gap: 8px; }
+  .app-shell .board-subheader-name { flex: 1 1 120px; min-width: 0; }
+  .app-shell .board-subheader-tabs { margin-left: 0; }
+  .app-shell .board-config { margin-left: auto; min-height: 44px; }
+  .app-shell .board-tab { min-height: 36px; display: flex; align-items: center; }
+  .app-shell .consolidated-columns { display: grid; grid-template-columns: minmax(0, 1fr); overflow: visible; width: 100%; }
+  .app-shell .consolidated-column, .app-shell .consolidated-columns.has-expanded .consolidated-column { min-width: 0; width: 100%; }
+  .app-shell .consolidated-columns.has-expanded .consolidated-column.is-compact { min-width: 0; }
+  .app-shell .consolidated-view-tabs { max-width: 100%; }
+  .app-shell .routines-form { padding: 16px; }
+  .app-shell .day-row-range { flex-wrap: wrap; width: 100%; }
+  .app-shell .day-row-range input { flex: 1 1 90px; width: 90px; }
+  .app-shell .history-row:not(.history-row-head) { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 16px; }
+  .app-shell .history-row-head { display: none; }
+  .app-shell .history-row > span { min-width: 0; overflow-wrap: anywhere; }
+  .app-shell .history-row:not(.history-row-head) > span::before { display: block; color: var(--dim); font-size: 10px; font-weight: 400; margin-bottom: 3px; }
+  .app-shell .history-row > span:nth-child(1)::before { content: 'ID'; }
+  .app-shell .history-row > span:nth-child(2)::before { content: 'Tablero'; }
+  .app-shell .history-row > span:nth-child(3)::before { content: 'Actividad'; }
+  .app-shell .history-row > span:nth-child(4)::before { content: 'Creada'; }
+  .app-shell .history-row > span:nth-child(5)::before { content: 'Completada'; }
+  .app-shell .history-title { white-space: normal; }
+  .app-shell .history-board { display: block; }
+  .app-shell .history-dot { display: inline-block; margin-right: 6px; }
+  .app-shell .history-actions { justify-self: start; display: flex; gap: 8px; flex-wrap: wrap; }
+  .app-shell .users-table { overflow: visible; }
+  .app-shell .users-row { min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .app-shell .users-row-head { display: none; }
+  .app-shell .users-actions { justify-self: start; flex-wrap: wrap; }
+  .app-shell .activity-trace-top { flex-wrap: wrap; gap: 4px; }
+  .app-shell .fab { right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); }
+  .app-shell .pomo-float { right: 86px; bottom: max(20px, env(safe-area-inset-bottom)); background: var(--sheet); }
+  .app-shell .panel-head { position: sticky; top: -18px; z-index: 2; background: var(--sheet); padding: 8px 0; }
+  .app-shell .panel-chip { max-width: 70%; }
+  .app-shell .activity-remove, .app-shell .column-add { width: 34px; height: 34px; flex-shrink: 0; }
+  .app-shell :is(.btn, .panel-close, .modal-close, .boards-sidebar-head button, .calendar-nav button, .panel-kanban-item, .history-tab, .select2-item, .navbar-user-item) { min-height: 44px; }
+  .app-shell .panel-close, .app-shell .modal-close { min-width: 44px; }
+  .app-shell .panel-note-add { flex-direction: column; }
+  .app-shell .panel-note-add .btn { align-self: flex-end; }
+  .app-shell .panel-kanban-item { display: flex; align-items: center; }
+  .app-shell .activity-detail-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell .modal-body { padding: 16px; }
+  .app-shell .modal-head, .app-shell .modal-foot { padding: 12px 16px; }
+  .app-shell .modal-foot .btn { flex: 1 1 110px; }
+  .login-screen { align-items: flex-start; padding-top: max(24px, env(safe-area-inset-top)); }
+  .login-card { padding: 20px; }
+  :is(.app-shell, .login-screen) :is(input, select, textarea) { font-size: 16px; }
+}
+@media (max-width: 420px) {
+  .app-shell .row-2 { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .navbar-menu.open .navbar-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell .sprite-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell .schedule-block { padding: 8px; }
+  .app-shell .day-row-label { width: auto; flex: 1; }
+  .app-shell .day-row-mode { flex-shrink: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell *, .app-shell *::before, .app-shell *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* Reserve space for quick actions: buttons never cover cards or indicators. */
+.app-shell { height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.app-shell .navbar { flex: 0 0 auto; }
+.app-shell .shell-content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; }
+.app-shell .board-subheader { top: 0; }
+.app-shell .board-detail, .app-shell .board-detail-tint { min-height: 100%; }
+.app-shell .consolidated-sidebar { top: 28px; }
+.shell-action-bar { display: flex; flex: 0 0 72px; min-height: 72px; align-items: center; justify-content: flex-end; gap: 12px; margin-left: var(--sidebar-width); padding: 10px 22px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--sheet); z-index: 36; }
+.app-shell .shell-action-bar :is(.fab, .pomo-float) { position: relative; inset: auto; height: 44px; box-shadow: none; }
+.app-shell .shell-action-bar .fab { width: auto; min-width: 160px; padding: 0 16px 0 42px; border-radius: 10px; display: flex; }
+.app-shell .shell-action-bar .fab-bar { left: 20px; }
+.app-shell .shell-action-bar .fab-bar-v { left: 29px; }
+.fab-label { color: #fff; font-size: 12px; font-weight: 700; }
+.app-shell:has(.shell-action-bar) .boards-sidebar { bottom: 72px; }
+.app-shell .mascot-strip { bottom: 72px; }
+@media (max-width: 1100px) { .app-shell .shell-action-bar { margin-left: 60px; } }
+@media (max-width: 760px) {
+  .app-shell .shell-action-bar { margin-left: 0; padding-inline: 14px; }
+  .app-shell .mascot-strip { display: none; }
+}
+
+.select2-native { display: none; }
+.app-shell .select2-item { width: 100%; border: 0; background: transparent; text-align: left; }
+.app-shell .select2-item:hover { background: var(--input); }
+.app-shell .calendar-entry { border: 0; text-align: left; width: 100%; }
+.app-shell .calendar-entry-more { border: 0; background: var(--input); border-radius: 6px; text-align: left; }
+.app-shell .panel-kanban-item { background: var(--input); color: var(--dim); border: 0; text-align: left; }
+@media (max-width: 760px) {
+  .app-shell .select2-native { display: block; width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--sheet); color: var(--text); }
+  .app-shell .select2-control, .app-shell .select2-menu { display: none; }
+  .app-shell .calendar-entry, .app-shell .calendar-entry-more { min-height: 44px; }
+}
+@media (pointer: coarse) {
+  .app-shell :is(.day-row-check, .day-row-mode button, .panel-kanban-item, .pomo-modes button, .pomo-duration-adjust button, .calendar-nav button, .select2-item, .navbar-user-item, .boards-sidebar-head button, .btn, .panel-close, .modal-close) { min-height: 44px; }
+  .app-shell :is(.day-row-check, .pomo-duration-adjust button, .calendar-nav button, .boards-sidebar-head button, .panel-close, .modal-close) { min-width: 44px; }
+}

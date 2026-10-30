@@ -4,13 +4,13 @@ import { useBoardStore } from '../../store/boardStore';
 import { useUiStore } from '../../store/uiStore';
 import ColumnsView from './ColumnsView';
 import CalendarView from './CalendarView';
+import { isExpiredRecurring } from '../../lib/schedule';
 import './boardDetail.css';
 
 export default function BoardDetail() {
   const { boardId } = useParams();
   const navigate = useNavigate();
   const boards = useBoardStore((s) => s.boards);
-  const countOf = useBoardStore((s) => s.countOf);
   const boardView = useUiStore((s) => s.boardView);
   const setBoardView = useUiStore((s) => s.setBoardView);
   const setActiveBoardId = useUiStore((s) => s.setActiveBoardId);
@@ -35,7 +35,7 @@ export default function BoardDetail() {
   }
 
   const bg = board.bgType === 'image' ? `url("${board.bgValue}") center/cover no-repeat, #22262f` : board.bgValue;
-  const entries = board.columns.flatMap((c) => c.cards.map((card) => ({ card, board })));
+  const entries = board.columns.flatMap((c) => c.cards.filter((card) => !isExpiredRecurring(card, c.status)).map((card) => ({ card, board })));
 
   return (
     <div className="board-detail" style={{ background: bg }}>
@@ -46,7 +46,7 @@ export default function BoardDetail() {
           </button>
           <span className="board-subheader-dot" style={{ background: board.color }} />
           <span className="board-subheader-name">{board.name}</span>
-          <span className="board-subheader-count mono">{countOf(board)}</span>
+          <span className="board-subheader-count mono">{entries.length}</span>
           <div className="board-subheader-tabs">
             <div className={`board-tab ${boardView === 'columns' ? 'active' : ''}`} onClick={() => setBoardView('columns')}>
               Columnas

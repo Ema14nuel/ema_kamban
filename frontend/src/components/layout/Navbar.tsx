@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useUiStore } from '../../store/uiStore';
 import { displayName, useAuthStore } from '../../store/authStore';
-import { useBoardStore } from '../../store/boardStore';
+
 import { usePomodoroStore } from '../../store/pomodoroStore';
 import { mmss } from '../../lib/date';
 import UserMenu from './UserMenu';
@@ -17,21 +17,23 @@ const NAV_TABS = [
   { label: 'Histórico', path: '/history' },
 ];
 
-export default function Navbar() {
+export default function Navbar({ sidebarCollapsed, onToggleSidebar }: { sidebarCollapsed: boolean; onToggleSidebar: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useUiStore((s) => s.theme);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
   const query = useUiStore((s) => s.query);
   const setQuery = useUiStore((s) => s.setQuery);
-  const setActiveBoardId = useUiStore((s) => s.setActiveBoardId);
+
   const togglePomodoroPanel = useUiStore((s) => s.togglePomodoroPanel);
   const panel = useUiStore((s) => s.panel);
-  const boards = useBoardStore((s) => s.boards);
+
   const user = useAuthStore((s) => s.user);
   const pomo = usePomodoroStore();
   const navRef = useRef<HTMLDivElement>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPath, setMenuPath] = useState<string | null>(null);
+  const menuOpen = menuPath === location.pathname;
+  const setMenuOpen = (open: boolean) => setMenuPath(open ? location.pathname : null);
 
   useEffect(() => {
     const el = navRef.current;
@@ -44,8 +46,10 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    setMenuOpen(false);
-  }, [location.pathname]);
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenuPath(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   const initials = displayName(user)
     .split(' ')
@@ -62,7 +66,8 @@ export default function Navbar() {
 
   return (
     <div className="navbar" ref={navRef}>
-      <div className="navbar-brand" onClick={() => navigate('/')}>
+      <button type="button" className="navbar-sidebar-toggle" onClick={() => { setMenuOpen(false); onToggleSidebar(); }} aria-label={sidebarCollapsed ? 'Mostrar tableros' : 'Ocultar tableros'} aria-expanded={!sidebarCollapsed} aria-controls="boards-sidebar-list">▦</button>
+      <button type="button" className="navbar-brand" aria-label="Ir al dashboard" onClick={() => navigate('/')}>
         <div className="navbar-logo">
           <span />
           <span className="dim" />
@@ -70,38 +75,23 @@ export default function Navbar() {
           <span />
         </div>
         <span className="navbar-title">Tableros</span>
-      </div>
+      </button>
 
       <div className={`navbar-menu ${menuOpen ? 'open' : ''}`}>
         <div className="navbar-tabs">
           {NAV_TABS.map((tab) => (
-            <div
+            <NavLink
+              to={tab.path}
+              end={tab.path === '/'}
               key={tab.path}
               className={`navbar-tab ${isTabActive(tab.path) ? 'active' : ''}`}
-              onClick={() => navigate(tab.path)}
+              onClick={() => setMenuOpen(false)}
             >
               {tab.label}
-            </div>
+            </NavLink>
           ))}
         </div>
 
-        {boards.length > 0 && (
-          <div className="navbar-boards">
-            {boards.map((b) => (
-              <div
-                key={b.id}
-                className="navbar-board-pill"
-                onClick={() => {
-                  setActiveBoardId(b.id);
-                  navigate(`/boards/${b.id}`);
-                }}
-              >
-                <span className="navbar-board-dot" style={{ background: b.color }} />
-                {b.name}
-              </div>
-            ))}
-          </div>
-        )}
 
         <div className="navbar-actions">
           <input
@@ -129,7 +119,7 @@ export default function Navbar() {
       <button
         type="button"
         className="navbar-hamburger"
-        onClick={() => setMenuOpen((v) => !v)}
+        onClick={() => { if (!sidebarCollapsed) onToggleSidebar(); setMenuOpen(!menuOpen); }}
         aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
         aria-expanded={menuOpen}
       >

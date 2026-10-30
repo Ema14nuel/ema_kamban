@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useUiStore } from '../../store/uiStore';
-import { toIso } from '../../lib/date';
+import { todayIso as businessToday, toIso } from '../../lib/date';
 import type { ActivityCard, Board } from '../../types';
 import './calendarView.css';
 
@@ -16,6 +17,7 @@ interface CalendarViewProps {
 const WEEK_DAYS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
 
 export default function CalendarView({ entries, onOpenCard }: CalendarViewProps) {
+  const [expandedDates, setExpandedDates] = useState<string[]>([]);
   const month = useUiStore((s) => s.month);
   const shiftMonth = useUiStore((s) => s.shiftMonth);
   const monthDate = month ? new Date(month) : new Date();
@@ -39,7 +41,7 @@ export default function CalendarView({ entries, onOpenCard }: CalendarViewProps)
   for (let d = 1; d <= daysInMonth; d++) cells.push({ date: new Date(year, m, d) });
 
   const monthLabel = monthDate.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
-  const todayIso = toIso(new Date());
+  const todayIso = businessToday();
 
   return (
     <div className="calendar-view">
@@ -66,8 +68,9 @@ export default function CalendarView({ entries, onOpenCard }: CalendarViewProps)
             <div key={idx} className={`calendar-cell ${iso === todayIso ? 'today' : ''}`}>
               <span className="calendar-day-num mono">{cell.date.getDate()}</span>
               <div className="calendar-day-entries">
-                {dayEntries.slice(0, 4).map((e) => (
-                  <div
+                {(expandedDates.includes(iso) ? dayEntries : dayEntries.slice(0, 4)).map((e) => (
+                  <button
+                    type="button"
                     key={e.card.id}
                     className="calendar-entry"
                     style={{ background: `${e.board.color}22`, color: e.board.color }}
@@ -75,9 +78,9 @@ export default function CalendarView({ entries, onOpenCard }: CalendarViewProps)
                     title={e.card.title}
                   >
                     {e.card.title}
-                  </div>
+                  </button>
                 ))}
-                {dayEntries.length > 4 && <div className="calendar-entry-more mono">+{dayEntries.length - 4}</div>}
+                {dayEntries.length > 4 && <button type="button" className="calendar-entry-more mono" aria-expanded={expandedDates.includes(iso)} onClick={() => setExpandedDates((days) => days.includes(iso) ? days.filter((day) => day !== iso) : [...days, iso])}>{expandedDates.includes(iso) ? 'Ver menos' : `+${dayEntries.length - 4} más`}</button>}
               </div>
             </div>
           );

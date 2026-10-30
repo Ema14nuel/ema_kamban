@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import Navbar from './Navbar';
+import BoardsSidebar from './BoardsSidebar';
 import Mascot from '../mascot/Mascot';
 import ActivityPanel from '../panels/ActivityPanel';
 import PomodoroPanel from '../panels/PomodoroPanel';
@@ -15,8 +16,10 @@ import { useBoardStore } from '../../store/boardStore';
 import { useRoutineStore } from '../../store/routineStore';
 import { useLogStore } from '../../store/logStore';
 import type { CardDragData } from '../board/dnd';
+import { useBusinessToday } from '../../lib/useBusinessToday';
 
 export default function Shell() {
+  const today = useBusinessToday();
   const location = useLocation();
   const panel = useUiStore((s) => s.panel);
   const immersive = useUiStore((s) => s.immersive);
@@ -34,6 +37,33 @@ export default function Shell() {
   const togglePomodoroPanel = useUiStore((s) => s.togglePomodoroPanel);
 
   const [activeCard, setActiveCard] = useState<CardDragData | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (window.matchMedia('(max-width: 1100px)').matches) return true;
+    try { return localStorage.getItem('ema-sidebar-collapsed') === 'true'; }
+    catch { return false; }
+  });
+
+  function toggleSidebar() {
+    setSidebarCollapsed((current) => {
+      try { localStorage.setItem('ema-sidebar-collapsed', String(!current)); } catch { /* Storage may be unavailable. */ }
+      return !current;
+    });
+  }
+
+  function closeMobileSidebar() {
+    if (window.matchMedia('(max-width: 1100px)').matches) setSidebarCollapsed(true);
+  }
+
+  useEffect(() => {
+    const small = window.matchMedia('(max-width: 1100px)');
+    const adapt = () => { if (small.matches) setSidebarCollapsed(true); };
+    small.addEventListener('change', adapt);
+    function onEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setSidebarCollapsed(true);
+    }
+    document.addEventListener('keydown', onEscape);
+    return () => { document.removeEventListener('keydown', onEscape); small.removeEventListener('change', adapt); };
+  }, []);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -53,7 +83,7 @@ export default function Shell() {
     fetchRoutines();
     fetchLog();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [today]);
 
   const onBoardScreen = /^\/boards\/[^/]+/.test(location.pathname);
 
@@ -85,20 +115,22 @@ export default function Shell() {
 
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActiveCard(null)}>
-      <div className="app-shell">
-        <Navbar />
-        <Outlet />
+      <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        <Navbar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
+        {!sidebarCollapsed && <button type="button" className="sidebar-backdrop" aria-label="Cerrar menú lateral" onClick={() => setSidebarCollapsed(true)} />}
+        <BoardsSidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} onNavigate={closeMobileSidebar} />
+        <div className="shell-content"><Outlet /></div>
         {onBoardScreen && <Mascot />}
         {panel === 'focus' && <ActivityPanel />}
         {panel === 'pomodoro' && <PomodoroPanel />}
-        {pomoRunning && panel !== 'pomodoro' && (
-          <button type="button" className="pomo-float mono" onClick={togglePomodoroPanel} aria-label="Abrir pomodoro">
-            ⏱ {Math.floor(pomoLeft / 60).toString().padStart(2, '0')}:{(pomoLeft % 60).toString().padStart(2, '0')}
-          </button>
-        )}
         {immersive && <ImmersiveMode />}
         <ModalsRoot />
-        <Fab onClick={() => openModal({ kind: 'activity', boardId: activeBoardId })} />
+        {!panel && !immersive && <div className="shell-action-bar" role="toolbar" aria-label="Acciones rápidas">
+          {pomoRunning && <button type="button" className="pomo-float mono" onClick={togglePomodoroPanel} aria-label="Abrir pomodoro">
+            ⏱ {Math.floor(pomoLeft / 60).toString().padStart(2, '0')}:{(pomoLeft % 60).toString().padStart(2, '0')}
+          </button>}
+          <Fab onClick={() => openModal({ kind: 'activity', boardId: activeBoardId })} />
+        </div>}
       </div>
       <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
         {activeCard && <DragCardPreview data={activeCard} />}

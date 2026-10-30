@@ -10,9 +10,9 @@ interface DayScheduleRowProps {
 export default function DayScheduleRow({ label, schedule, onChange, allRow }: DayScheduleRowProps) {
   return (
     <div className={`day-row ${allRow ? 'day-row-all' : ''}`} style={{ opacity: !allRow && !schedule.on ? 0.45 : 1 }}>
-      <div className="day-row-check" onClick={() => onChange({ on: !schedule.on })} data-on={schedule.on}>
+      <button type="button" className="day-row-check" aria-label={`Activar ${label}`} aria-pressed={schedule.on} onClick={() => onChange({ on: !schedule.on })} data-on={schedule.on}>
         {schedule.on ? '✓' : ''}
-      </div>
+      </button>
       <span className="day-row-label">{label}</span>
       <div className="day-row-mode">
         <button type="button" className={schedule.mode === 'fixed' ? 'active' : ''} onClick={() => onChange({ mode: 'fixed' })}>

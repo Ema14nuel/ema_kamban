@@ -3,7 +3,7 @@ import { useBoardStore } from '../../store/boardStore';
 import { useUiStore } from '../../store/uiStore';
 import { STATUSES } from '../../types';
 import { tint } from '../../lib/color';
-import { isCardVisibleToday } from '../../lib/schedule';
+import { isCardVisibleToday, isExpiredRecurring } from '../../lib/schedule';
 import ConsolidatedCard from './ConsolidatedCard';
 import CalendarView from '../board/CalendarView';
 import './consolidated.css';
@@ -26,11 +26,10 @@ export default function ConsolidatedScreen() {
   // Las columnas personalizadas de cada tablero son locales a ese tablero —
   // el consolidado solo agrega las 4 columnas fijas entre tableros.
   const allEntries = visibleBoards.flatMap((b) =>
-    b.columns.filter((c) => !c.isCustom).flatMap((c) => c.cards.map((card) => ({ card, board: b, status: c.status }))),
+    b.columns.filter((c) => !c.isCustom).flatMap((c) => c.cards.filter((card) => !isExpiredRecurring(card, c.status)).map((card) => ({ card, board: b, status: c.status }))),
   );
-  // Igual que en el tablero: la vista de columnas solo muestra lo de hoy (+
-  // sin fecha + completadas) — lo pasado sin completar es "perdida" y se ve
-  // en Histórico. El calendario sigue mostrando todo, para eso existe.
+  // Las recurrentes vencidas se excluyen también del calendario.
+  // Las actividades manuales vencidas permanecen pendientes.
   const todayEntries = allEntries.filter((e) => isCardVisibleToday(e.card, e.status));
   const totalCount = allEntries.length;
 
@@ -58,7 +57,7 @@ export default function ConsolidatedScreen() {
         </div>
         {boards.map((b) => {
           const on = activeIds.includes(b.id);
-          const count = b.columns.reduce((n, c) => n + c.cards.length, 0);
+          const count = b.columns.reduce((n, c) => n + c.cards.filter((card) => !isExpiredRecurring(card, c.status)).length, 0);
           return (
             <div
               key={b.id}

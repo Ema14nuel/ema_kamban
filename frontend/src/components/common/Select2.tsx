@@ -32,9 +32,15 @@ export default function Select2({ options, value, onChange, placeholder = 'Selec
 
   return (
     <div className="select2" ref={ref}>
+      <select className="select2-native" aria-label={placeholder} value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
+        <option value="" disabled>{placeholder}</option>
+        {options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+      </select>
       <button
         type="button"
         className="select2-control"
+        aria-haspopup="listbox"
+        aria-expanded={open}
         onClick={() => {
           setOpen((v) => !v);
           setQuery('');
@@ -56,13 +62,17 @@ export default function Select2({ options, value, onChange, placeholder = 'Selec
             autoFocus
             className="select2-search"
             placeholder="Buscar…"
+            aria-label={`Buscar en ${placeholder}`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <div className="select2-list">
+          <div className="select2-list" role="listbox" aria-label={placeholder}>
             {filtered.length === 0 && <div className="select2-empty">Sin resultados</div>}
             {filtered.map((o) => (
-              <div
+              <button
+                type="button"
+                role="option"
+                aria-selected={o.id === value}
                 key={o.id}
                 className="select2-item"
                 onClick={() => {
@@ -73,7 +83,7 @@ export default function Select2({ options, value, onChange, placeholder = 'Selec
                 {o.color && <span className="select2-dot" style={{ background: o.color }} />}
                 <span className="select2-item-label">{o.label}</span>
                 {o.id === value && <span className="select2-check">✓</span>}
-              </div>
+              </button>
             ))}
           </div>
         </div>

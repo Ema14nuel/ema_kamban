@@ -93,15 +93,17 @@ export default function ActivityPanel() {
         <div className="panel-detail">
           <div className="panel-kanban">
             {board.columns.map((c) => (
-              <div
+              <button
+                type="button"
                 key={c.id}
                 className={`panel-kanban-item ${status === c.status ? 'active' : ''}`}
+                aria-pressed={status === c.status}
                 style={{ boxShadow: status === c.status ? `0 0 0 2px ${c.color}` : undefined }}
                 onClick={() => moveCard(board.id, card.id, c.status)}
               >
                 <span className="column-dot" style={{ background: c.color }} />
                 {c.title}
-              </div>
+              </button>
             ))}
           </div>
 
